@@ -270,7 +270,7 @@ bank_array_schema = \
          jg.make_key('toDisplay', jg.make_atom(bool, False, var='to_display')),
          jg.make_key('backgroundColor', jg.make_atom(int, 127, var='background_color')),
          jg.make_key('textColor', jg.make_atom(int, 127, var='text_color')),
-         jg.make_key('isColorEnabled', jg.make_atom(bool, True))],
+         jg.make_key('isColorEnabled', jg.make_atom(bool, value=True))],
         model=Bank)
 
 omniport_schema = \

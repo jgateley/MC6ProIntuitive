@@ -1,0 +1,103 @@
+# The MIDI channel assigned to the MC6Pro
+midi_channel: 3
+# The list of MIDI channels, the position in the list determines the channel number (1 based)
+midi_channels:
+- name: Iridium
+- name: Scarlett
+- name: MC6Pro
+- name: H9
+- name: Timeline
+- name: Looper
+# Use navigator mode
+navigator: true
+# Color schemas
+colors:
+- name: default
+  bank_color: black
+  bank_background_color: lightyellow
+  preset_color: black
+  preset_background_color: lightyellow
+- name: navigator
+  bank_color: red
+  bank_background_color: yellow
+  preset_color: red
+  preset_background_color: yellow
+- name: bypass
+  preset_color: black
+  preset_toggle_color: white
+  preset_background_color: darkgreen
+  preset_toggle_background_color: red
+# The list of MIDI messages, order is not important
+messages:
+- {channel: Iridium, name: Iridium Disable, type: CC, number: 102, value: 0}
+- {channel: Iridium, name: Iridium Enable, type: CC, number: 102, value: 127}
+- {channel: Iridium, name: Iridium Bank 0, type: CC, number: 0, value: 0}
+- {channel: Iridium, name: Iridium Clean, type: PC, number: 0}
+- {channel: Iridium, name: Iridium Burry, type: PC, number: 1}
+- {channel: Iridium, name: Iridium Distortion, type: PC, number: 2}
+- {channel: Iridium, name: Iridium Max Distortion, type: PC, number: 3}
+- {channel: H9, name: H9 Disable, type: CC, number: 1, value: 0}
+- {channel: H9, name: H9 Enable, type: CC, number: 0, value: 0}
+- {channel: Timeline, name: Timeline Disable, type: CC, number: 102, value: 0}
+- {channel: Timeline, name: Timeline Enable, type: CC, number: 102, value: 127}
+- {channel: Looper, name: Looper Test, type: CC, number: 34, value: 0}
+# Banks - as a list
+banks:
+- name: Noodling
+  description: A selection of cool guitar sounds
+  to_display: true
+- name: Iridium
+  description: Iridium choices
+  to_display: true
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    colors: bypass
+    to_toggle: true
+    messages:
+    - {midi_message: Iridium Disable, toggle: one}
+    - {midi_message: Iridium Enable, toggle: two}
+  - short_name: Clean
+    messages:
+    - {midi_message: Iridium Bank 0}
+    - {midi_message: Iridium Clean}
+  - short_name: Burry
+    messages:
+    - {midi_message: Iridium Bank 0}
+    - {midi_message: Iridium Burry}
+  - short_name: Distortion
+    messages:
+    - {midi_message: Iridium Bank 0}
+    - {midi_message: Iridium Distortion}
+  - short_name: Max Distortion
+    messages:
+    - {midi_message: Iridium Bank 0}
+    - {midi_message: Iridium Max Distortion}
+- name: H9
+  description: Best of H9 sounds
+  to_display: true
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    colors: bypass
+    to_toggle: true
+    messages:
+    - {midi_message: H9 Disable, toggle: one}
+    - {midi_message: H9 Enable, toggle: two}
+- name: Timeline
+  description: Various delay sounds
+  to_display: true
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    colors: bypass
+    to_toggle: true
+    messages:
+    - {midi_message: Timeline Disable, toggle: one}
+    - {midi_message: Timeline Enable, toggle: two}
+- name: For What It's Worth
+  description: Crosby, Stills, Nash and Young
+  to_display: true
+- name: Prelude in C# Minor
+  description: Rachmaninoff
+  to_display: true

@@ -43,7 +43,7 @@ midi_message_default = midi_message_type[0]
 midi_message_trigger = ["No Action", "Press", "Release", "Long Press", "Long Press Scroll", "Long Press Release",
                         "Release All", "Double Tap", "Double Tap Release", "Long Double Tap", "Long Double Tap Release",
                         "On First Engage", "On First Engage (send only this)", "On Disengage"]
-midi_message_trigger_default = midi_message_trigger[0]
+midi_message_trigger_default = midi_message_trigger[1]
 
 
 class IntuitiveException(Exception):
@@ -78,6 +78,160 @@ class MessageCatalog:
         for message_name in self.catalog:
             result.append(self.catalog[message_name])
         return result
+
+
+class ColorsCatalog:
+    def __init__(self, colors=None):
+        self.catalog = {}
+        if colors is not None:
+            for color in colors:
+                self.add(color)
+
+    def add(self, schema):
+        if schema.name in self.catalog:
+            if schema != self.catalog[schema.name]:
+                raise IntuitiveException("mismatch", "Schema name already exists, and is different")
+        for catalog_schema_name in self.catalog:
+            if self.catalog[catalog_schema_name] == schema:
+                return catalog_schema_name
+        self.catalog[schema.name] = schema
+        return schema.name
+
+    def add_preset_schema(self, bank_color_schema, name_color, name_toggle_color, background_color,
+                          background_toggle_color):
+        name_color = ColorSchema.from_base_preset_color(name_color, False)
+        name_toggle_color = ColorSchema.from_base_preset_color(name_toggle_color, False)
+        background_color = ColorSchema.from_base_preset_color(background_color, True)
+        background_toggle_color = ColorSchema.from_base_preset_color(background_toggle_color, True)
+        schema = ColorSchema.make_preset_schema(bank_color_schema.bank_color, bank_color_schema.bank_background_color,
+                                                name_color, name_toggle_color,
+                                                background_color, background_toggle_color)
+        for other_schema in self.catalog:
+            if schema.same_colors(self.catalog[other_schema]):
+                return other_schema
+        schema.build_name(False)
+        return self.add(schema)
+
+    def add_bank_schema(self, schema):
+        for other_schema in self.catalog:
+            if schema.same_bank_colors(self.catalog[other_schema]):
+                return other_schema
+        schema.build_name(True)
+        return self.add(schema)
+
+    def lookup(self, name):
+        if name is None:
+            if 'default' in self.catalog:
+                return self.catalog['default']
+            return ColorSchema()
+        return self.catalog[name]
+
+    def to_list(self):
+        result = []
+        for schema_name in self.catalog:
+            result.append(self.catalog[schema_name])
+        return result
+
+
+# Colors Schemas
+class ColorSchema(jg.JsonGrammarModel):
+    @staticmethod
+    def from_base_bank_color(color):
+        if color is None:
+            return preset_colors[127]
+        return preset_colors[color]
+
+    @staticmethod
+    def to_base_bank_color(color):
+        if color == "default" or color is None:
+            return None
+        return preset_colors.index(color)
+
+    @staticmethod
+    def to_base_preset_color(color, is_background):
+        if is_background:
+            if color == preset_colors[0]:
+                return None
+        else:
+            if color == preset_colors[7]:
+                return None
+        if color is None:
+            return None
+        return preset_colors.index(color)
+
+    @staticmethod
+    def from_base_preset_color(color, is_background):
+        if color is None:
+            if is_background:
+                return preset_colors[0]
+            return preset_colors[7]
+        return preset_colors[color]
+
+    @staticmethod
+    def make_preset_schema(bank_color, bank_background_color, preset_color, toggle_color, preset_background_color,
+                           toggle_background_color):
+        schema = ColorSchema()
+        schema.bank_color = bank_color
+        schema.bank_background_color = bank_background_color
+        schema.preset_color = preset_color
+        schema.preset_background_color = preset_background_color
+        schema.preset_toggle_color = toggle_color
+        schema.preset_toggle_background_color = toggle_background_color
+        return schema
+
+    def __init__(self):
+        super().__init__()
+        self.name = None
+        self.bank_color = None
+        self.bank_background_color = None
+        self.preset_color = None
+        self.preset_background_color = None
+        self.preset_toggle_color = None
+        self.preset_toggle_background_color = None
+
+    def __eq__(self, other):
+        result = isinstance(other, ColorSchema)
+        result = result and self.name == other.name
+        result = result and self.bank_color == other.bank_color
+        result = result and self.bank_background_color == other.bank_background_color
+        result = result and self.preset_color == other.preset_color
+        result = result and self.preset_background_color == other.preset_background_color
+        result = result and self.preset_toggle_color == other.preset_toggle_color
+        result = result and self.preset_toggle_background_color == other.preset_toggle_background_color
+        if not result:
+            self.modified = True
+        return result
+
+    def same_colors(self, other):
+        result = isinstance(other, ColorSchema)
+        result = result and self.bank_color == other.bank_color
+        result = result and self.bank_background_color == other.bank_background_color
+        result = result and self.preset_color == other.preset_color
+        result = result and self.preset_background_color == other.preset_background_color
+        result = result and self.preset_toggle_color == other.preset_toggle_color
+        result = result and self.preset_toggle_background_color == other.preset_toggle_background_color
+        if result:
+            self.modified = True
+        return result
+
+    def same_bank_colors(self, other):
+        result = isinstance(other, ColorSchema)
+        result = result and self.bank_color == other.bank_color
+        result = result and self.bank_background_color == other.bank_background_color
+        if result:
+            self.modified = True
+        return result
+
+    def build_name(self, is_bank):
+        self.name = self.bank_color + ':' + self.bank_background_color
+        if not is_bank:
+            self.name += ':' + \
+                self.preset_color + ':' + self.preset_background_color + ':' + \
+                self.preset_toggle_color + ':' + self.preset_toggle_background_color
+
+    def from_base_bank(self, bank):
+        self.bank_color = self.from_base_bank_color(bank.text_color)
+        self.bank_background_color = self.from_base_bank_color(bank.background_color)
 
 
 # MIDI and controller messages are their own top level category, and are named
@@ -303,7 +457,12 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
 
     def from_base(self, base_message, message_catalog, bank_catalog, midi_channels):
         if base_message.trigger is not None:
-            self.trigger = midi_message_trigger[base_message.trigger]
+            if base_message.trigger == 1:
+                self.trigger = None
+            else:
+                self.trigger = midi_message_trigger[base_message.trigger]
+        else:
+            self.trigger = midi_message_trigger[0]
         if base_message.toggle_group is not None:
             self.toggle = preset_toggle_state[base_message.toggle_group]
         midi_message = IntuitiveMessage()
@@ -314,6 +473,8 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
         base_message = MC6Pro_grammar.MidiMessage()
         if self.trigger is not None:
             base_message.trigger = midi_message_trigger.index(self.trigger)
+        else:
+            base_message.trigger = midi_message_trigger.index("Press")
         if self.toggle is not None:
             base_message.toggle_group = preset_toggle_state.index(self.toggle)
         if self.midi_message is not None:
@@ -324,10 +485,14 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
 
 class IntuitivePreset(jg.JsonGrammarModel):
     @staticmethod
-    def make(short_name, messages):
+    def make(short_name, messages, colors):
         result = IntuitivePreset()
         result.short_name = short_name
         result.messages = messages
+        if colors is None or isinstance(colors, str):
+            result.colors = colors
+        else:
+            result.colors = colors.name
         return result
 
     def __init__(self):
@@ -335,10 +500,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
         self.short_name = None
         self.long_name = None
         self.toggle_name = None
-        self.name_color = None
-        self.name_toggle_color = None
-        self.background_color = None
-        self.background_toggle_color = None
+        self.colors = None
         self.strip_color = None
         self.strip_toggle_color = None
         self.to_toggle = None
@@ -347,29 +509,23 @@ class IntuitivePreset(jg.JsonGrammarModel):
     def __eq__(self, other):
         result = (isinstance(other, IntuitivePreset) and self.short_name == other.short_name and
                   self.long_name == other.long_name and self.toggle_name == other.toggle_name and
-                  self.name_color == other.name_color and self.name_toggle_color == other.name_toggle_color and
-                  self.background_color == other.background_color and
-                  self.background_toggle_color == other.background_toggle_color and
+                  self.colors == other.colors and
                   self.strip_color == other.strip_color and self.strip_toggle_color == other.strip_toggle_color and
                   self.to_toggle == other.to_toggle and self.messages == other.messages)
         if not result:
             self.modified = True
         return result
 
-    def from_base(self, base_preset, message_catalog, bank_catalog, midi_channels):
+    def from_base(self, base_preset, message_catalog, colors_catalog, bank_color_schema, bank_catalog, midi_channels):
         if base_preset.short_name is None:
             raise IntuitiveException("unimplemented", "preset short name is None")
         self.short_name = base_preset.short_name
         self.long_name = base_preset.long_name
         self.toggle_name = base_preset.toggle_name
-        if base_preset.name_color is not None:
-            self.name_color = preset_colors[base_preset.name_color]
-        if base_preset.name_toggle_color is not None:
-            self.name_toggle_color = preset_colors[base_preset.name_toggle_color]
-        if base_preset.background_color is not None:
-            self.background_color = preset_colors[base_preset.background_color]
-        if base_preset.background_toggle_color is not None:
-            self.background_toggle_color = preset_colors[base_preset.background_toggle_color]
+        self.colors = colors_catalog.add_preset_schema(bank_color_schema,
+                                                       base_preset.name_color, base_preset.name_toggle_color,
+                                                       base_preset.background_color,
+                                                       base_preset.background_toggle_color)
         if base_preset.strip_color is not None:
             self.strip_color = preset_colors[base_preset.strip_color]
         if base_preset.strip_toggle_color is not None:
@@ -383,19 +539,22 @@ class IntuitivePreset(jg.JsonGrammarModel):
                     self.messages[pos].from_base(base_message, message_catalog, bank_catalog, midi_channels)
             jg.prune_list(self.messages)
 
-    def to_base(self, message_catalog, bank_catalog, midi_channels):
+    def to_base(self, message_catalog, colors_catalog, bank_colors_schema, bank_catalog, midi_channels):
         base_preset = MC6Pro_grammar.Preset()
         base_preset.short_name = self.short_name
         base_preset.long_name = self.long_name
         base_preset.toggle_name = self.toggle_name
-        if self.name_color is not None:
-            base_preset.name_color = preset_colors.index(self.name_color)
-        if self.name_toggle_color is not None:
-            base_preset.name_toggle_color = preset_colors.index(self.name_toggle_color)
-        if self.background_color is not None:
-            base_preset.background_color = preset_colors.index(self.background_color)
-        if self.background_toggle_color is not None:
-            base_preset.background_toggle_color = preset_colors.index(self.background_toggle_color)
+        if self.colors is None:
+            preset_colors_schema = bank_colors_schema
+        else:
+            preset_colors_schema = colors_catalog.lookup(self.colors)
+        base_preset.name_color = preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_color, False)
+        base_preset.name_toggle_color = (
+            preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_toggle_color, False))
+        base_preset.background_color = (
+            preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_background_color, True))
+        base_preset.background_toggle_color = (
+            preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_toggle_background_color, True))
         if self.strip_color is not None:
             base_preset.strip_color = preset_colors.index(self.strip_color)
         if self.strip_toggle_color is not None:
@@ -414,29 +573,33 @@ class IntuitiveBank(jg.JsonGrammarModel):
         super().__init__()
         self.name = None
         self.description = None
-        self.background_color = None
-        self.text_color = None
+        self.colors = None
         self.to_display = None
         self.clear_toggle = None
         self.presets = None
 
     def __eq__(self, other):
         result = (isinstance(other, IntuitiveBank) and self.name == other.name and
-                  self.description == other.description and self.background_color == other.background_color and
-                  self.text_color == other.text_color and self.to_display == other.to_display and
+                  self.description == other.description and
+                  self.colors == other.colors and
+                  self.to_display == other.to_display and
                   self.clear_toggle == other.clear_toggle and self.presets == other.presets)
         if not result:
             self.modified = True
         return result
 
     @staticmethod
-    def build_roadmap_bank(bank_number):
+    def build_roadmap_bank(bank_number, colors):
         result = IntuitiveBank()
         result.name = "Home"
         if bank_number > 0:
             result.name += " (" + str(bank_number + 1) + ")"
         result.description = "Navigation Home"
         result.presets = []
+        if colors is None or isinstance(colors, str):
+            result.colors = colors
+        else:
+            result.colors = colors.name
         return result
 
     @staticmethod
@@ -446,17 +609,15 @@ class IntuitiveBank(jg.JsonGrammarModel):
         result.description = description
         return result
 
-    def from_base(self, base_bank, message_catalog, bank_catalog, midi_channels):
+    def from_base(self, base_bank, message_catalog, colors_catalog, bank_catalog, midi_channels):
         if base_bank.short_name is not None:
             raise IntuitiveException('unimplemented', 'bank short_name')
         if base_bank.name is None:
             raise IntuitiveException('missing_bank_name', 'bank has no name')
         self.name = base_bank.name
         self.description = base_bank.description
-        if base_bank.text_color is not None:
-            self.text_color = preset_colors[base_bank.text_color]
-        if base_bank.background_color is not None:
-            self.background_color = preset_colors[base_bank.background_color]
+        color_schema = ColorSchema()
+        color_schema.from_base_bank(base_bank)
         self.to_display = base_bank.to_display
         self.clear_toggle = base_bank.clear_toggle
         if base_bank.presets is not None:
@@ -464,23 +625,25 @@ class IntuitiveBank(jg.JsonGrammarModel):
             for pos, base_preset in enumerate(base_bank.presets):
                 if base_preset is not None:
                     self.presets[pos] = IntuitivePreset()
-                    self.presets[pos].from_base(base_preset, message_catalog, bank_catalog, midi_channels)
+                    self.presets[pos].from_base(base_preset, message_catalog, colors_catalog, color_schema,
+                                                bank_catalog, midi_channels)
             jg.prune_list(self.presets)
+        self.colors = colors_catalog.add_bank_schema(color_schema)
 
-    def to_base(self, message_catalog, bank_catalog, midi_channels):
+    def to_base(self, message_catalog, colors_catalog, bank_catalog, midi_channels):
         base_bank = MC6Pro_grammar.Bank()
         base_bank.name = self.name
         base_bank.description = self.description
-        if self.text_color is not None:
-            base_bank.text_color = preset_colors.index(self.text_color)
-        if self.background_color is not None:
-            base_bank.background_color = preset_colors.index(self.background_color)
+        bank_colors_schema = colors_catalog.lookup(self.colors)
+        base_bank.text_color = bank_colors_schema.to_base_bank_color(bank_colors_schema.bank_color)
+        base_bank.background_color = bank_colors_schema.to_base_bank_color(bank_colors_schema.bank_background_color)
         base_bank.to_display = self.to_display
         base_bank.clear_toggle = self.clear_toggle
         if self.presets is not None:
             for pos, preset in enumerate(self.presets):
                 if preset is not None:
-                    base_preset = preset.to_base(message_catalog, bank_catalog, midi_channels)
+                    base_preset = preset.to_base(message_catalog, colors_catalog, bank_colors_schema, bank_catalog,
+                                                 midi_channels)
                     base_bank.set_preset(base_preset, pos)
         return base_bank
 
@@ -497,7 +660,8 @@ class IntuitiveBank(jg.JsonGrammarModel):
             self.presets.append(self.blank_preset)
         self.presets.insert(pos + 3, prev_page_preset)
 
-    def add_paging_presets(self, next_page_preset, prev_page_preset, bank_number, banks, message_catalog):
+    def add_paging_presets(self, next_page_preset, prev_page_preset, bank_number, banks, message_catalog,
+                           navigators_colors_schema):
         if len(self.presets) <= 6:
             return []
         self.add_paging_preset_pair(5, next_page_preset, prev_page_preset)
@@ -512,10 +676,14 @@ class IntuitiveBank(jg.JsonGrammarModel):
         # Need a jump to next bank, page 0 and prior bank, page 3
         next_page_message = IntuitiveMessage.make_bank_jump_message('next_bank_' + str(bank_number+1),
                                                                     banks[bank_number+1].name, 0, message_catalog)
-        next_page_preset = IntuitivePreset.make('Next', [IntuitivePresetMessage.make(next_page_message)])
+        next_page_preset = IntuitivePreset.make('Next',
+                                                [IntuitivePresetMessage.make(next_page_message)],
+                                                navigators_colors_schema)
         prev_page_message = IntuitiveMessage.make_bank_jump_message('prev_bank_' + str(bank_number),
                                                                     banks[bank_number].name, 3, message_catalog)
-        prev_page_preset = IntuitivePreset.make('Previous', [IntuitivePresetMessage.make(prev_page_message)])
+        prev_page_preset = IntuitivePreset.make('Previous',
+                                                [IntuitivePresetMessage.make(prev_page_message)],
+                                                navigators_colors_schema)
         self.add_paging_preset_pair(23, next_page_preset, prev_page_preset)
         result = self.presets[24:]
         self.presets = self.presets[0:24]
@@ -550,6 +718,8 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
         self.midi_channels = None
         self.messages = None
         self.message_catalog = None
+        self.colors = None
+        self.colors_catalog = None
         self.banks = None
         self.midi_channel = None
         self.navigator = None
@@ -558,6 +728,7 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
         result = (isinstance(other, MC6ProIntuitive) and
                   self.midi_channels == other.midi_channels and
                   self.messages == other.messages and
+                  self.colors == other.colors and
                   self.banks == other.banks and
                   self.midi_channel == other.midi_channel and
                   self.navigator == other.navigator)
@@ -596,15 +767,24 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
     #   Add next page preset if needed
     # Go through each real bank and add the home preset, and page moving presets
     def build_roadmap(self):
-        blank_preset = IntuitivePreset.make('', [])
+        if 'navigator' in self.colors_catalog.catalog:
+            navigator_colors_schema = self.colors_catalog.catalog['navigator']
+        elif 'default' in self.colors_catalog.catalog:
+            navigator_colors_schema = self.colors_catalog.catalog['default']
+        else:
+            navigator_colors_schema = ColorSchema()
+        blank_preset = IntuitivePreset.make('', [], None)
         return_to_home_message = IntuitiveMessage.make_bank_jump_message('navigator_home', 'Home',
                                                                          0, self.message_catalog)
         return_to_home_preset = IntuitivePreset.make('Home',
-                                                     [IntuitivePresetMessage.make(return_to_home_message)])
+                                                     [IntuitivePresetMessage.make(return_to_home_message)],
+                                                     navigator_colors_schema)
         next_page_message = IntuitiveMessage.make_toggle_page_message('next_page', True, self.message_catalog)
-        next_page_preset = IntuitivePreset.make('Next', [IntuitivePresetMessage.make(next_page_message)])
+        next_page_preset = IntuitivePreset.make('Next', [IntuitivePresetMessage.make(next_page_message)],
+                                                navigator_colors_schema)
         prev_page_message = IntuitiveMessage.make_toggle_page_message('prev_page', False, self.message_catalog)
-        prev_page_preset = IntuitivePreset.make('Previous', [IntuitivePresetMessage.make(prev_page_message)])
+        prev_page_preset = IntuitivePreset.make('Previous', [IntuitivePresetMessage.make(prev_page_message)],
+                                                navigator_colors_schema)
 
         # Clean up the bank list
         jg.compact_list(self.banks)
@@ -616,23 +796,25 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
 
         # Create the roadmap banks
         for i in range(nmr_roadmap_banks):
-            self.banks.insert(i, IntuitiveBank.build_roadmap_bank(i))
+            self.banks.insert(i, IntuitiveBank.build_roadmap_bank(i, navigator_colors_schema))
 
         # And add in the navigator presets
         for bank in self.banks[nmr_roadmap_banks:]:
             jump_to_bank_message = IntuitiveMessage.make_bank_jump_message('navigator ' + bank.name,
                                                                            bank.name, 0,
                                                                            self.message_catalog)
-            jump_to_bank_preset = IntuitivePreset.make(bank.name, [IntuitivePresetMessage.make(jump_to_bank_message)])
+            jump_to_bank_preset = IntuitivePreset.make(bank.name, [IntuitivePresetMessage.make(jump_to_bank_message)],
+                                                       navigator_colors_schema)
             self.banks[0].presets.append(jump_to_bank_preset)
 
         # Now add in the prev/next buttons
         remaining_presets = self.banks[0].add_paging_presets(next_page_preset, prev_page_preset, 0,
-                                                             self.banks, self.message_catalog)
+                                                             self.banks, self.message_catalog, navigator_colors_schema)
         for i in range(1, nmr_roadmap_banks):
             self.banks[i].presets = remaining_presets
             remaining_presets = self.banks[i].add_paging_presets(next_page_preset, prev_page_preset, i,
-                                                                 self.banks, self.message_catalog)
+                                                                 self.banks, self.message_catalog,
+                                                                 navigator_colors_schema)
         if remaining_presets:
             raise IntuitiveException('programmer_error', "extra presets")
 
@@ -646,14 +828,15 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
                 self.banks.insert(i + 1 + j, IntuitiveBank.build_overflow_bank(bank.name, bank.description, j + 1))
             bank.add_navigator_home_preset(return_to_home_preset, blank_preset)
             remaining_presets = bank.add_paging_presets(next_page_preset, prev_page_preset,
-                                                        i, self.banks, self.message_catalog)
+                                                        i, self.banks, self.message_catalog, navigator_colors_schema)
             for j in range(nmr_overflow_banks):
                 self.banks[i + 1 + j].presets = remaining_presets
                 remaining_presets = self.banks[i + 1 + j].add_paging_presets(next_page_preset,
                                                                              prev_page_preset,
                                                                              i,
                                                                              self.banks,
-                                                                             self.message_catalog)
+                                                                             self.message_catalog,
+                                                                             navigator_colors_schema)
             i += 1 + nmr_overflow_banks
             if remaining_presets:
                 raise IntuitiveException('programmer_error', "extra presets")
@@ -679,6 +862,7 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
                 raise IntuitiveException('bank_arrangement_missing', "missing bank arrangement")
             self.banks = [None] * 128
             self.message_catalog = MessageCatalog()
+            self.colors_catalog = ColorsCatalog()
             bank_catalog = []
             for bank in base_model.banks:
                 if bank is not None:
@@ -688,15 +872,18 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
             for pos, bank in enumerate(base_model.banks):
                 if bank is not None:
                     self.banks[pos] = IntuitiveBank()
-                    self.banks[pos].from_base(bank, self.message_catalog, bank_catalog, self.midi_channels)
+                    self.banks[pos].from_base(bank, self.message_catalog, self.colors_catalog, bank_catalog,
+                                              self.midi_channels)
                     if pos < len(base_model.bank_arrangement) and base_model.bank_arrangement[pos] is None:
-                        raise IntuitiveException('bank_arrangement_mismatch', 'have bank but no bank arrangement')
+                        raise IntuitiveException('bank_arrangement_mismatch',
+                                                 'have bank but no bank arrangement')
                     if (pos < len(base_model.bank_arrangement) and
                             base_model.bank_arrangement[pos].name != self.banks[pos].name):
                         raise IntuitiveException('bank_order', 'bank and arrangement do not agree on order')
                 elif pos < len(base_model.bank_arrangement) and base_model.bank_arrangement[pos] is not None:
                     raise IntuitiveException('bank_arrangement_mismatch', 'have bank arrangement but no bank')
             jg.prune_list(self.banks)
+            self.colors = self.colors_catalog.to_list()
             self.messages = self.message_catalog.to_list()
         elif base_model.bank_arrangement is not None:
             raise IntuitiveException('banks_missing', 'bank arrangement present but banks missing')
@@ -722,7 +909,9 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
             config.midi_channels_from_list(config_channels)
 
         # Create the MIDI dictionary, mapping MIDI message names to the message objects
+        # And the colors dictionary, mapping names to color schemas
         self.message_catalog = MessageCatalog(self.messages)
+        self.colors_catalog = ColorsCatalog(self.colors)
 
         # If navigator is set, create the roadmap
         if self.navigator:
@@ -736,7 +925,7 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
                     bank_catalog[bank.name] = pos
             for pos, bank in enumerate(self.banks):
                 if bank is not None:
-                    base_bank = bank.to_base(self.message_catalog, bank_catalog, channels_list)
+                    base_bank = bank.to_base(self.message_catalog, self.colors_catalog, bank_catalog, channels_list)
                     config.set_bank(base_bank, pos)
                     bank_arrangement = MC6Pro_grammar.BankArrangementItem()
                     bank_arrangement.name = bank.name
@@ -745,6 +934,19 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
             config.midi_channel = self.midi_channel - 1
         return config
 
+
+colors_schema = \
+    jg.make_dict(
+        'colors',
+        [jg.make_key('name', jg.make_atom(str, var='name')),
+         jg.make_key('bank_color', jg.make_enum(preset_colors, var='bank_color')),
+         jg.make_key('bank_background_color', jg.make_enum(preset_colors, var='bank_background_color')),
+         jg.make_key('preset_color', jg.make_enum(preset_colors, var='preset_color')),
+         jg.make_key('preset_background_color', jg.make_enum(preset_colors, var='preset_background_color')),
+         jg.make_key('preset_toggle_color', jg.make_enum(preset_colors, var='preset_toggle_color')),
+         jg.make_key('preset_toggle_background_color', jg.make_enum(preset_colors,
+                                                                    var='preset_toggle_background_color'))],
+        model=ColorSchema)
 
 # MIDI channel grammar, just a name
 midi_channel_schema = \
@@ -790,13 +992,7 @@ preset_schema = \
                   jg.make_key('long_name', jg.make_atom(str, '', var='long_name')),
                   jg.make_key('toggle_name', jg.make_atom(str, '', var='toggle_name')),
                   jg.make_key('to_toggle', jg.make_atom(bool, False, var='to_toggle')),
-                  jg.make_key('name_color', jg.make_enum(preset_colors, preset_default_color, var='name_color')),
-                  jg.make_key('name_toggle_color',
-                              jg.make_enum(preset_colors, preset_default_color, var='name_toggle_color')),
-                  jg.make_key('background_color',
-                              jg.make_enum(preset_colors, preset_empty_color, var='background_color')),
-                  jg.make_key('background_toggle_color',
-                              jg.make_enum(preset_colors, preset_empty_color, var='background_toggle_color')),
+                  jg.make_key('colors', jg.make_atom(str, '', var='colors')),
                   jg.make_key('strip_color', jg.make_enum(preset_colors, preset_empty_color, var='strip_color')),
                   jg.make_key('strip_toggle_color',
                               jg.make_enum(preset_colors, preset_empty_color, var='strip_toggle_color')),
@@ -808,8 +1004,7 @@ bank_schema = \
     jg.make_dict('bank',
                  [jg.make_key('name', jg.make_atom(str, '', var='name')),
                   jg.make_key('description', jg.make_atom(str, '', var='description')),
-                  jg.make_key('text_color', jg.make_enum(preset_colors, "default", var='text_color')),
-                  jg.make_key('background_color', jg.make_enum(preset_colors, "default", var='background_color')),
+                  jg.make_key('colors', jg.make_atom(str, '', var='colors')),
                   jg.make_key('clear_toggle', jg.make_atom(bool, False, var='clear_toggle')),
                   jg.make_key('to_display', jg.make_atom(bool, False, var='to_display')),
                   jg.make_key('presets', jg.make_list(0, preset_schema, var='presets'))],
@@ -822,5 +1017,6 @@ mc6pro_intuitive_schema = \
                   jg.make_key('messages', jg.make_list(0, message_schema, var='messages')),
                   jg.make_key('banks', jg.make_list(128, bank_schema, var='banks')),
                   jg.make_key('midi_channel', jg.make_atom(int, 1, var='midi_channel')),
+                  jg.make_key('colors', jg.make_list(0, colors_schema, var='colors')),
                   jg.make_key('navigator', jg.make_atom(bool, False, var='navigator'))],
                  model=MC6ProIntuitive)

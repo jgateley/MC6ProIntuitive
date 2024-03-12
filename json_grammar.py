@@ -1,5 +1,7 @@
 import copy
 import json
+import yaml
+import re
 
 
 # Parsing a JSON Grammar
@@ -194,10 +196,6 @@ class JsonGrammar:
     def __init__(self, schema, minimal=False):
         self.schema = schema
         self.minimal = minimal
-        self.loaded = False
-        self.file_name = None
-        self.source_string = None
-        self.raw = None
 
     # Parsing
     # Parsing takes a JSON string and returns a model.
@@ -277,6 +275,7 @@ class JsonGrammar:
         # Found keys is the number of keys found in the elem while processing the schema
         # If this is not the total number of keys in the elem, some keys didn't match
         found_keys = len(seen_keys)
+        found_keys_name = []
 
         # process each schema key
         for key in keys:
@@ -289,6 +288,7 @@ class JsonGrammar:
                                                str(elem.keys()))
             else:
                 found_keys += 1
+                found_keys_name.append(key['name'])
                 # Note we update the context with the elem for sub-parsing
                 key_result = self.parse_elem(elem[key['name']], key['schema'], name + ':' + key['name'], elem,
                                              list_pos, model)
@@ -301,7 +301,13 @@ class JsonGrammar:
 
         # Make sure all keys in the elem were processed
         if found_keys != len(elem):
-            raise JsonGrammarException('dict_bad_keys', 'some keys were not found')
+            missing_keys = []
+            for key in elem:
+                if key not in found_keys_name:
+                    missing_keys.append(key)
+            message = 'While parsing ' + name + ' the following keys are undefined: '
+            message += ", ".join(missing_keys)
+            raise JsonGrammarException('dict_bad_keys', message)
         if result == {}:
             return None
         return result
@@ -682,32 +688,48 @@ class JsonGrammar:
         else:
             return result
 
-    def parse_data(self):
-        elem = self.raw
-        if self.raw is None and self.minimal:
-            elem = {}
+    def parse(self, elem):
         return self.parse_elem(elem, self.schema, "", None, [], None)
 
-    def load_file(self, file_name):
-        self.file_name = file_name
-        with open(self.file_name, "r") as read_file:
-            self.raw = json.load(read_file)
-        self.loaded = True
-        return self.parse_data()
+    def gen(self, model):
+        return self.gen_elem(model, self.schema, None, [])
 
-    def save_file(self, file_name, model):
-        temp_json = self.gen_elem(model, self.schema, None, [])
-        self.file_name = file_name
-        with open(self.file_name, "w") as write_file:
-            json.dump(temp_json, write_file, indent=4)
 
-    def load_string(self, source_string):
-        self.source_string = source_string
-        self.raw = json.loads(self.source_string)
-        self.loaded = True
-        return self.parse_data()
+class JsonGrammarFile:
+    def __init__(self, filename=None, is_yaml=None):
+        if filename is None:
+            if is_yaml is None:
+                raise JsonGrammarException('must specify filename or is_yaml')
+            self.is_yaml = is_yaml
+            self.filename = None
+        else:
+            self.filename = filename
+            if re.search(r'\.yaml$', filename):
+                self.is_yaml = True
+            elif re.search(r'\.json$', filename):
+                self.is_yaml = False
+            else:
+                raise JsonGrammarException('File is not json or yaml')
 
-    def save_string(self, model):
-        temp_json = self.gen_elem(model, self.schema, None, [])
-        self.source_string = json.dumps(temp_json)
-        return self.source_string
+    def save(self, data):
+        if self.filename is not None:
+            with open(self.filename, "w") as write_file:
+                if self.is_yaml:
+                    yaml.dump(data, write_file)
+                else:
+                    json.dump(data, write_file, indent=4)
+        else:
+            raise JsonGrammarException('Not implemented')
+
+    def load(self):
+        if self.filename is not None:
+            with open(self.filename, "r") as read_file:
+                if self.is_yaml:
+                    result = yaml.safe_load(read_file)
+                else:
+                    result = json.load(read_file)
+        else:
+            raise JsonGrammarException('Not implemented')
+        if result is None:
+            result = {}
+        return result

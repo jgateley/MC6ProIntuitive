@@ -69,6 +69,49 @@ class IntuitiveMessageCatalogTestCase(unittest.TestCase):
         self.assertEqual(catalog.add(message), 'one')
 
 
+class IntuitiveColorsCatalogTestCase(unittest.TestCase):
+    def test_init(self):
+        colors = []
+        colors1 = MC6Pro_intuitive.ColorSchema()
+        colors1.name = 'One'
+        colors1.bank_color = "black"
+        colors1.bank_background_color = "lime"
+        colors1.preset_color = "blue"
+        colors1.preset_background_color = "yellow"
+        colors1.preset_toggle_color = "orchid"
+        colors1.preset_toggle_background_color = "gray"
+        colors.append(colors1)
+        colors2 = MC6Pro_intuitive.ColorSchema()
+        colors2.name = 'Two'
+        colors2.bank_color = "orange"
+        colors2.bank_background_color = "red"
+        colors2.preset_color = "skyblue"
+        colors2.preset_background_color = "deeppink"
+        colors2.preset_toggle_color = "olivedrab"
+        colors2.preset_toggle_background_color = "mediumslateblue"
+        colors.append(colors2)
+        catalog = MC6Pro_intuitive.ColorsCatalog(colors)
+        self.assertEqual(len(catalog.catalog), 2)
+        self.assertEqual(catalog.lookup('One'), colors1)
+        self.assertEqual(catalog.lookup('Two'), colors2)
+
+    def test_add(self):
+        catalog = MC6Pro_intuitive.ColorsCatalog()
+
+        colors1 = MC6Pro_intuitive.ColorSchema()
+        colors1.name = 'One'
+        colors1.bank_color = "black"
+        colors1.bank_background_color = "lime"
+        colors1.preset_color = "blue"
+        colors1.preset_background_color = "yellow"
+        colors1.preset_toggle_color = "orchid"
+        colors1.preset_toggle_background_color = "gray"
+        self.assertEqual(catalog.add(colors1), 'One')
+
+        colors1.name = 'Two'
+        self.assertEqual(catalog.add(colors1), 'One')
+
+
 # Test the structure of the various grammar elements
 # These are brittle, not the best
 class JsonGrammarElementStructureTestCase(unittest.TestCase):
@@ -1294,6 +1337,22 @@ class JsonGeneratorTestCase(unittest.TestCase):
 
 
 class IntuitiveTestCases(unittest.TestCase):
+    def test_colors_schema(self):
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_bank_color(None), "default")
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_bank_color(127), "default")
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_bank_color(7), "white")
+        self.assertIsNone(MC6Pro_intuitive.ColorSchema.to_base_bank_color("default"))
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.to_base_bank_color("white"), 7)
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_preset_color(None, False), "white")
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_preset_color(None, True), "black")
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_preset_color(0, False), "black")
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_preset_color(7, True), "white")
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_preset_color(4, False), "yellow")
+        self.assertIsNone(MC6Pro_intuitive.ColorSchema.to_base_preset_color("black", True))
+        self.assertIsNone(MC6Pro_intuitive.ColorSchema.to_base_preset_color("white", False))
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.to_base_preset_color("yellow", True), 4)
+        self.assertEqual(MC6Pro_intuitive.ColorSchema.to_base_preset_color("yellow", False), 4)
+
     def test_IntuitiveMidiMessage_eq(self):
         msg1 = MC6Pro_intuitive.IntuitiveMessage()
         msg2 = MC6Pro_intuitive.IntuitiveMessage()
@@ -1576,7 +1635,7 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         else:
             self.assertTrue(False, "Unknown type: " + str(type(json1)))
 
-    def process_one_file(self, filename):
+    def process_one_file(self, filename, extension):
         # Parse the base config file into a base model
         # Convert the base model into an intuitive model
         # Write the intuitive model to an intuitive config file
@@ -1587,11 +1646,12 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         # Save the base model into a base config file
         # Load the new base config file back into a base model
         # Compare against the original base model
-        orig_base_config_file = "Configs/" + filename + ".json"
-        intuitive_config_file = "tmp/" + filename + "_intuitive.json"
-        new_base_config_file = "tmp/" + filename + ".json"
+        orig_base_config_filename = "Configs/" + filename + ".json"
+        intuitive_config_filename = "tmp/" + filename + "_intuitive." + extension
+        new_base_config_filename = "tmp/" + filename + ".json"
         base_grammar = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
-        orig_base_model = base_grammar.load_file(orig_base_config_file)
+        base_file = jg.JsonGrammarFile(filename=orig_base_config_filename)
+        orig_base_model = base_grammar.parse(base_file.load())
         self.assertEqual(orig_base_model.modified, True)
 
         # Convert the config model into an intuitive model
@@ -1600,11 +1660,13 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
 
         # Save the intuitive model to a file
         int_grammar = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, True)
-        int_grammar.save_file(intuitive_config_file, orig_int_model)
+        int_file = jg.JsonGrammarFile(filename=intuitive_config_filename)
+        int_file.save(int_grammar.gen(orig_int_model))
 
         # Load the intuitive string back to a model
         reloaded_int_grammar = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, True)
-        reloaded_int_model = reloaded_int_grammar.load_file(intuitive_config_file)
+        reloaded_int_file = jg.JsonGrammarFile(intuitive_config_filename)
+        reloaded_int_model = reloaded_int_grammar.parse(reloaded_int_file.load())
 
         # Compare the reloaded model
         if reloaded_int_model is None:
@@ -1619,48 +1681,54 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
 
         # Save a new config file
         reloaded_base_file_grammar = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
-        reloaded_base_file_grammar.save_file(new_base_config_file, reloaded_base_model)
+        reloaded_base_file = jg.JsonGrammarFile(filename=new_base_config_filename)
+        reloaded_base_file.save(reloaded_base_file_grammar.gen(reloaded_base_model))
 
         # Load the new config file
         rereloaded_base_grammar = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
-        rereloaded_base_model = rereloaded_base_grammar.load_file(new_base_config_file)
+        rereloaded_base_file = jg.JsonGrammarFile(filename=new_base_config_filename)
+        rereloaded_base_model = rereloaded_base_grammar.parse(rereloaded_base_file.load())
         self.assertEqual(rereloaded_base_model, orig_base_model)
 
         # Make sure the raw json is the same
         # Get rid of fields that complicate things
-        rereloaded_base_grammar.raw['downloadDate'] = ''
-        rereloaded_base_grammar.raw['hash'] = 0
-        base_grammar.raw['downloadDate'] = ''
-        base_grammar.raw['hash'] = 0
+        rereloaded_data = rereloaded_base_file.load()
+        base_data = base_file.load()
+        rereloaded_data['downloadDate'] = ''
+        rereloaded_data['hash'] = 0
+        base_data['downloadDate'] = ''
+        base_data['hash'] = 0
         # the midi clock output ports only care about the 11 LSBs
-        controller_settings = base_grammar.raw['data']['controller_settings']['data']['controller_settings']
+        controller_settings = base_data['data']['controller_settings']['data']['controller_settings']
         base_midi_clock_output_ports = controller_settings['data']['midiClockOutputPorts']
         new2_base_midi_clock_output_ports = \
-            rereloaded_base_grammar.raw['data']['controller_settings']['data']['controller_settings']['data'][
+            rereloaded_data['data']['controller_settings']['data']['controller_settings']['data'][
                 'midiClockOutputPorts']
         output_ports = base_midi_clock_output_ports & new2_base_midi_clock_output_ports & 2047
         self.assertEqual(output_ports, 2047)
         controller_settings['data']['midiClockOutputPorts'] = output_ports
-        rereloaded_base_grammar.raw['data']['controller_settings']['data']['controller_settings']['data'][
+        rereloaded_data['data']['controller_settings']['data']['controller_settings']['data'][
             'midiClockOutputPorts'] = \
             output_ports
 
-        self.same_json(base_grammar.raw, rereloaded_base_grammar.raw, '',
+        self.same_json(base_data, rereloaded_data, '',
                        ['bankMsgArray', 'sequencer_engines'])
 
-    def test_empty_config(self):
-        self.process_one_file("Empty")
-
-    def test_features_config(self):
-        self.process_one_file("Features")
+    def test_configs(self):
+        self.process_one_file("Empty", "yaml")
+        self.process_one_file("Empty", "json")
+        self.process_one_file("Features", "yaml")
+        self.process_one_file("Features", "json")
 
     def test_demo(self):
         base_conf = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
+        base_file = jg.JsonGrammarFile('tmp/Demo.json')
         intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
-        intuitive_model = intuitive_conf.load_file('Configs/Demo.json')
+        intuitive_file = jg.JsonGrammarFile('Configs/Demo.yaml')
+        intuitive_model = intuitive_conf.parse(intuitive_file.load())
         base_model = intuitive_model.to_base()
         self.assertIsNotNone(base_model)
-        base_conf.save_file('tmp/Demo.json', base_model)
+        base_file.save(base_conf.gen(base_model))
 
 
 class MC6ProNavigatorTestCase(unittest.TestCase):
@@ -1841,7 +1909,7 @@ class MC6ProNavigatorTestCase(unittest.TestCase):
          ['Preset 17', 'Preset 18', 'Previous', 'Preset 19', 'Preset 20', 'Next',
           'Preset 21', 'Preset 22', 'Previous', 'Preset 23', 'Preset 24', 'Next',
           'Preset 25', 'Preset 26', 'Previous']
-        ],
+         ],
         ["Bank 28",
          ['Preset 1', 'Preset 2', 'Home', 'Preset 3', 'Preset 4', 'Next',
           'Preset 5', 'Preset 6', 'Previous', 'Preset 7', 'Preset 8', 'Next',
@@ -1879,7 +1947,8 @@ class MC6ProNavigatorTestCase(unittest.TestCase):
 
     def test_navigator(self):
         intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
-        intuitive_model = intuitive_conf.load_file('Configs/NavigatorTest.json')
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/NavigatorTest.json')
+        intuitive_model = intuitive_conf.parse(intuitive_file.load())
         base_model = intuitive_model.to_base()
         self.assertIsNotNone(base_model)
         for pos, bank in enumerate(base_model.banks):
@@ -1894,6 +1963,201 @@ class MC6ProNavigatorTestCase(unittest.TestCase):
                         self.assertIsNone(preset)
             else:
                 self.assertIsNone(bank)
+
+
+class MC6ProColorsInheritanceTestCase(unittest.TestCase):
+    def check_bank(self, bank, foreground_color, background_color):
+        if foreground_color is None:
+            self.assertIsNone(bank.text_color)
+        else:
+            self.assertEqual(bank.text_color, MC6Pro_intuitive.preset_colors.index(foreground_color))
+        if background_color is None:
+            self.assertIsNone(bank.background_color)
+        else:
+            self.assertEqual(bank.background_color, MC6Pro_intuitive.preset_colors.index(background_color))
+
+    def check_preset(self, preset, preset_color, preset_toggle_color, preset_background_color,
+                     preset_toggle_background_color):
+        if preset_color is None:
+            self.assertIsNone(preset.name_color)
+        else:
+            self.assertEqual(preset.name_color, MC6Pro_intuitive.preset_colors.index(preset_color))
+        if preset_toggle_color is None:
+            self.assertIsNone(preset.name_toggle_color)
+        else:
+            self.assertEqual(preset.name_toggle_color, MC6Pro_intuitive.preset_colors.index(preset_toggle_color))
+        if preset_background_color is None:
+            self.assertIsNone(preset.background_color)
+        else:
+            self.assertEqual(preset.background_color, MC6Pro_intuitive.preset_colors.index(preset_background_color))
+        if preset_toggle_background_color is None:
+            self.assertIsNone(preset.background_toggle_color)
+        else:
+            self.assertEqual(preset.background_toggle_color,
+                             MC6Pro_intuitive.preset_colors.index(preset_toggle_background_color))
+
+    def test_inheritance1(self):
+        # Navigator schema:
+        #   Bank: steelblue/lightsteelblue
+        #   Preset: tan/cornsilk
+        #   Preset Toggle: brown/maroon
+        # Default schema:
+        #   Bank: orange/red
+        #   Preset: skyblue/olivedrab
+        #   Preset Toggle: deeppink/mediumslateblue
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest1.yaml')
+        intuitive_model = intuitive_conf.parse(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, "steelblue", "lightsteelblue")
+        self.check_preset(navigator_bank.presets[0], "tan", "brown",
+                          "cornsilk", "maroon")
+        self.check_preset(navigator_bank.presets[1], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, "orange", "red")
+        self.check_preset(bank_one.presets[0], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+
+    def test_inheritance2(self):
+        # Navigator schema:
+        #   Bank: steelblue/lightsteelblue
+        #   Preset: tan/cornsilk
+        #   Preset Toggle: brown/maroon
+        # Default schema:
+        #   Bank: None/None
+        #   Preset: None/None
+        #   Preset Toggle: None/NOne
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest2.yaml')
+        intuitive_model = intuitive_conf.parse(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, "steelblue", "lightsteelblue")
+        self.check_preset(navigator_bank.presets[0], "tan", "brown",
+                          "cornsilk", "maroon")
+        self.check_preset(navigator_bank.presets[1], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, None, None)
+        self.check_preset(bank_one.presets[0], None, None,
+                          None, None)
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+
+    def test_inheritance3(self):
+        # Navigator schema: same as default
+        # Default schema:
+        #   Bank: orange/red
+        #   Preset: skyblue/olivedrab
+        #   Preset Toggle: deeppink/mediumslateblue
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest3.yaml')
+        intuitive_model = intuitive_conf.parse(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, "orange", "red")
+        self.check_preset(navigator_bank.presets[0], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        self.check_preset(navigator_bank.presets[1], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, "orange", "red")
+        self.check_preset(bank_one.presets[0], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+
+    def test_inheritance4(self):
+        # Navigator schema: None
+        # Default schema: None
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest4.yaml')
+        intuitive_model = intuitive_conf.parse(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, None, None)
+        self.check_preset(navigator_bank.presets[0], None, None,
+                          None, None)
+        self.check_preset(navigator_bank.presets[1], None, None,
+                          None, None)
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, None, None)
+        self.check_preset(bank_one.presets[0], None, None,
+                          None, None)
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], None, None,
+                          None, None)
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
 
 
 if __name__ == '__main__':

@@ -1,0 +1,53 @@
+# This test:
+#   navigator color schema specified
+#   default color schema specified
+# Use navigator mode
+navigator: true
+# Color schemas
+colors:
+# The default schema for all non-navigator banks/presets
+- name: default
+  bank_color: orange
+  bank_background_color: red
+  preset_color: skyblue
+  preset_toggle_color: deeppink
+  preset_background_color: olivedrab
+  preset_toggle_background_color: mediumslateblue
+- name: navigator
+  bank_color: steelblue
+  bank_background_color: lightsteelblue
+  preset_color: tan
+  preset_toggle_color: brown
+  preset_background_color: cornsilk
+  preset_toggle_background_color: maroon
+- name: bank two
+  preset_color: darkseagreen
+  preset_toggle_color: forestgreen
+  preset_background_color: olive
+  preset_toggle_background_color: indigo
+  bank_color: blueviolet
+  bank_background_color: thistle
+- name: preset two
+  preset_color: khaki
+  preset_toggle_color: darkkhaki
+  preset_background_color: lightyellow
+  preset_toggle_background_color: lightsalmon
+  bank_color: tomato
+  bank_background_color: orangered
+# Banks - as a list
+banks:
+# Bank one - uses default colors, except for preset 2, which has its own schema
+- name: Bank One
+  description: Uses default colors
+  presets:
+  - short_name: preset one default
+  - short_name: preset two custom
+    colors: preset two
+# Bank two - uses bank two colors for the bank and preset one, preset two again has own colors
+- name: Bank Two
+  description: Use Bank Two Colors
+  colors: bank two
+  presets:
+  - short_name: bank two preset one default
+  - short_name: bank two preset two custom
+    colors: preset two

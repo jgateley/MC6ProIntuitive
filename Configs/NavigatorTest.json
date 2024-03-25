@@ -1,4 +1,5 @@
 {
+    "version": "0.1.0",
     "navigator": true,
     "midi_channel": 3,
     "midi_channels": [

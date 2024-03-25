@@ -1,3 +1,5 @@
+# Version, required
+version: 0.1.0
 # The MIDI channel assigned to the MC6Pro
 midi_channel: 3
 # The list of MIDI channels, the position in the list determines the channel number (1 based)
@@ -38,6 +40,15 @@ messages:
 - {channel: Iridium, name: Iridium Max Distortion, type: PC, number: 3}
 - {channel: H9, name: H9 Disable, type: CC, number: 1, value: 0}
 - {channel: H9, name: H9 Enable, type: CC, number: 0, value: 0}
+- {channel: H9, name: H9 Chorus SquareModWah, type: PC, number: 0}
+- {channel: H9, name: H9 Chorus PhasyChorus, type: PC, number: 1}
+- {channel: H9, name: H9 Chorus Polymodelicious, type: PC, number: 2}
+- {channel: H9, name: H9 Phaser FunkPhase, type: PC, number: 3}
+- {channel: H9, name: H9 Phaser SawModPhaser, type: PC, number: 4}
+- {channel: H9, name: H9 Phaser Vibraphaser, type: PC, number: 5}
+- {channel: H9, name: H9 Wah BigModdedPlanets, type: PC, number: 6}
+- {channel: H9, name: H9 Wah LessEvenAutoWah, type: PC, number: 7}
+- {channel: H9, name: H9 Wah PhasyWah, type: PC, number: 8}
 - {channel: Timeline, name: Timeline Disable, type: CC, number: 102, value: 0}
 - {channel: Timeline, name: Timeline Enable, type: CC, number: 102, value: 127}
 - {channel: Looper, name: Looper Test, type: CC, number: 34, value: 0}
@@ -45,15 +56,77 @@ messages:
 banks:
 - name: Noodling
   description: A selection of cool guitar sounds
-  to_display: true
-- name: Iridium
-  description: Iridium choices
-  to_display: true
+  display_description: true
+- name: H9 Chorus
+  description: H9 chorus sounds
+  display_description: true
+  messages:
+  - {midi_message: H9 Enable, trigger: On Enter Bank - Execute Once Only}
   presets:
   - short_name: Enabled
     toggle_name: Disabled
     colors: bypass
-    to_toggle: true
+    toggle_mode: true
+    messages:
+    - {midi_message: H9 Disable, toggle: one}
+    - {midi_message: H9 Enable, toggle: two}
+  - short_name: SquareModWah
+    messages:
+    - {midi_message: H9 Chorus SquareModWah}
+  - short_name: PhasyChorus
+    messages:
+    - {midi_message: H9 Chorus PhasyChorus}
+  - short_name: Polymodelicious
+    messages:
+    - {midi_message: H9 Chorus Polymodelicious}
+- name: H9 Phaser
+  description: H9 phaser sounds
+  display_description: true
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    colors: bypass
+    toggle_mode: true
+    messages:
+    - {midi_message: H9 Disable, toggle: one}
+    - {midi_message: H9 Enable, toggle: two}
+  - short_name: FunkPhase
+    messages:
+    - {midi_message: H9 Phaser FunkPhase}
+  - short_name: SawModPhaser
+    messages:
+    - {midi_message: H9 Phaser SawModPhaser}
+  - short_name: Vibraphaser
+    messages:
+    - {midi_message: H9 Phaser Vibraphaser}
+- name: H9 Wah
+  description: H9 wah sounds
+  display_description: true
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    colors: bypass
+    toggle_mode: true
+    messages:
+    - {midi_message: H9 Disable, toggle: one}
+    - {midi_message: H9 Enable, toggle: two}
+  - short_name: BigModdedPlanets
+    messages:
+    - {midi_message: H9 Wah BigModdedPlanets}
+  - short_name: LessEvenAutoWah
+    messages:
+    - {midi_message: H9 Wah LessEvenAutoWah}
+  - short_name: PhasyWah
+    messages:
+    - {midi_message: H9 Wah PhasyWah}
+- name: Iridium
+  description: Iridium choices
+  display_description: true
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    colors: bypass
+    toggle_mode: true
     messages:
     - {midi_message: Iridium Disable, toggle: one}
     - {midi_message: Iridium Enable, toggle: two}
@@ -73,31 +146,20 @@ banks:
     messages:
     - {midi_message: Iridium Bank 0}
     - {midi_message: Iridium Max Distortion}
-- name: H9
-  description: Best of H9 sounds
-  to_display: true
-  presets:
-  - short_name: Enabled
-    toggle_name: Disabled
-    colors: bypass
-    to_toggle: true
-    messages:
-    - {midi_message: H9 Disable, toggle: one}
-    - {midi_message: H9 Enable, toggle: two}
 - name: Timeline
   description: Various delay sounds
-  to_display: true
+  display_description: true
   presets:
   - short_name: Enabled
     toggle_name: Disabled
     colors: bypass
-    to_toggle: true
+    toggle_mode: true
     messages:
     - {midi_message: Timeline Disable, toggle: one}
     - {midi_message: Timeline Enable, toggle: two}
 - name: For What It's Worth
   description: Crosby, Stills, Nash and Young
-  to_display: true
+  display_description: true
 - name: Prelude in C# Minor
   description: Rachmaninoff
-  to_display: true
+  display_description: true

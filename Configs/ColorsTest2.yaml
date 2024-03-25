@@ -1,6 +1,7 @@
 # This test:
 #   navigator color schema specified
 #   default color schema unspecified
+version: 0.1.0
 # Use navigator mode
 navigator: true
 # Color schemas

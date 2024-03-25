@@ -29,15 +29,15 @@ if __name__ == '__main__':
     dest_file = jg.JsonGrammarFile(args.dest)
 
     if args.base_to_intuitive:
-        base_model = base_conf.parse(source_file.load())
+        base_model = base_conf.parse_config(source_file.load())
 
         intuitive_model = MC6Pro_intuitive.MC6ProIntuitive()
         intuitive_model.from_base(base_model)
 
-        dest_file.save(intuitive_conf.gen(intuitive_model))
+        dest_file.save(intuitive_conf.gen_config(intuitive_model))
     else:
-        intuitive_model = intuitive_conf.parse(source_file.load())
+        intuitive_model = intuitive_conf.parse_config(source_file.load())
 
         base_model = intuitive_model.to_base()
 
-        dest_file.save(base_conf.gen(base_model))
+        dest_file.save(base_conf.gen_config(base_model))

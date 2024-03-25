@@ -5,26 +5,14 @@ import MC6Pro_intuitive
 import json_grammar as jg
 
 
-# Helper function
-def make_common_switch():
-    switch_enum = jg.make_enum(['a', 'b'], default='a')
-    switch_key = jg.make_key('switch', switch_enum)
-    a_keys = [jg.make_key('a1', jg.make_atom(int, 1)),
-              jg.make_key('a2', jg.make_atom(int, 2))]
-    b_keys = [jg.make_key('b1', jg.make_atom(int, 1)),
-              jg.make_key('b2', jg.make_atom(int, 2))]
-    common_keys = [jg.make_key('c1', jg.make_atom(int, 1)),
-                   jg.make_key('c2', jg.make_atom(int, 2))]
-    test_switch = jg.make_switch_dict('test', switch_key,
-                                      {'a': a_keys, 'b': b_keys}, common_keys=common_keys)
-    return test_switch
-
-
 # Model object used for testing
 class ObjectForTests(jg.JsonGrammarModel):
     def __init__(self):
         super().__init__()
         self.x = None
+
+    def __eq__(self, other):
+        return self.x == other.x and self.modified == other.modified
 
 
 # A second model object used for testing
@@ -33,171 +21,31 @@ class Object2ForTests(jg.JsonGrammarModel):
         super().__init__()
         self.y = None
 
-
-class IntuitiveMessageCatalogTestCase(unittest.TestCase):
-    def test_init(self):
-        messages = []
-        message1 = MC6Pro_intuitive.IntuitiveMessage()
-        message1.name = 'one'
-        message1.type = 'Bank Jump'
-        message1.page = 1
-        message1.bank = 2
-        messages.append(message1)
-        message2 = MC6Pro_intuitive.IntuitiveMessage()
-        message2.name = 'two'
-        message2.type = 'Bank Jump'
-        message2.page = 2
-        message2.bank = 1
-        messages.append(message2)
-
-        catalog = MC6Pro_intuitive.MessageCatalog(messages)
-        self.assertEqual(len(catalog.catalog), 2)
-        self.assertEqual(catalog.lookup('one'), message1)
-        self.assertEqual(catalog.lookup('two'), message2)
-
-    def test_add(self):
-        catalog = MC6Pro_intuitive.MessageCatalog()
-
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        message.name = 'one'
-        message.type = 'Bank Jump'
-        message.page = 1
-        message.bank = 2
-        self.assertEqual(catalog.add(message), 'one')
-
-        message.name = 'two'
-        self.assertEqual(catalog.add(message), 'one')
+    def __eq__(self, other):
+        return self.y == other.y and self.modified == other.modified
 
 
-class IntuitiveColorsCatalogTestCase(unittest.TestCase):
-    def test_init(self):
-        colors = []
-        colors1 = MC6Pro_intuitive.ColorSchema()
-        colors1.name = 'One'
-        colors1.bank_color = "black"
-        colors1.bank_background_color = "lime"
-        colors1.preset_color = "blue"
-        colors1.preset_background_color = "yellow"
-        colors1.preset_toggle_color = "orchid"
-        colors1.preset_toggle_background_color = "gray"
-        colors.append(colors1)
-        colors2 = MC6Pro_intuitive.ColorSchema()
-        colors2.name = 'Two'
-        colors2.bank_color = "orange"
-        colors2.bank_background_color = "red"
-        colors2.preset_color = "skyblue"
-        colors2.preset_background_color = "deeppink"
-        colors2.preset_toggle_color = "olivedrab"
-        colors2.preset_toggle_background_color = "mediumslateblue"
-        colors.append(colors2)
-        catalog = MC6Pro_intuitive.ColorsCatalog(colors)
-        self.assertEqual(len(catalog.catalog), 2)
-        self.assertEqual(catalog.lookup('One'), colors1)
-        self.assertEqual(catalog.lookup('Two'), colors2)
-
-    def test_add(self):
-        catalog = MC6Pro_intuitive.ColorsCatalog()
-
-        colors1 = MC6Pro_intuitive.ColorSchema()
-        colors1.name = 'One'
-        colors1.bank_color = "black"
-        colors1.bank_background_color = "lime"
-        colors1.preset_color = "blue"
-        colors1.preset_background_color = "yellow"
-        colors1.preset_toggle_color = "orchid"
-        colors1.preset_toggle_background_color = "gray"
-        self.assertEqual(catalog.add(colors1), 'One')
-
-        colors1.name = 'Two'
-        self.assertEqual(catalog.add(colors1), 'One')
+complete_conf = jg.JsonGrammar(None)
+minimal_conf = jg.JsonGrammar(None, True)
 
 
-# Test the structure of the various grammar elements
-# These are brittle, not the best
-class JsonGrammarElementStructureTestCase(unittest.TestCase):
-    # Test dict key structure
-    def test_key(self):
-        self.assertEqual({'name': 'key', 'schema': 1}, jg.make_key('key', 1))
-
-    # Test dict structure, include variable, model and both and none
-    def test_dict(self):
-        self.assertEqual({'type': 'dictionary', 'name': 'foo', 'keys': [1, 2, 3]},
-                         jg.make_dict('foo', [1, 2, 3]))
-        self.assertEqual({'type': 'dictionary', 'name': 'foo', 'keys': [1, 2, 3], 'variable': 'x'},
-                         jg.make_dict('foo', [1, 2, 3], var='x'))
-        self.assertEqual({'type': 'dictionary', 'name': 'foo', 'keys': [1, 2, 3], 'model': ObjectForTests},
-                         jg.make_dict('foo', [1, 2, 3], model=ObjectForTests))
-        self.assertEqual({'type': 'dictionary', 'name': 'foo', 'keys': [1, 2, 3],
-                          'variable': 'x', 'model': ObjectForTests},
-                         jg.make_dict('foo', [1, 2, 3], var='x', model=ObjectForTests))
-
-    # Test the switch dictionary, with none, var, model, and both
-    def test_switch_dict(self):
-        self.assertEqual({'type': 'switch_dictionary', 'name': 'foo', 'switch_key': 1,
-                          'case_keys': {'a': 1}, 'common_keys': []},
-                         jg.make_switch_dict('foo', 1, {'a': 1}))
-        self.assertEqual({'type': 'switch_dictionary', 'name': 'foo', 'switch_key': 1,
-                          'case_keys': {'a': 1}, 'common_keys': [],
-                          'variable': 'x'},
-                         jg.make_switch_dict('foo', 1, {'a': 1}, var='x'))
-        self.assertEqual({'type': 'switch_dictionary', 'name': 'foo', 'switch_key': 1,
-                          'case_keys': {'a': 1}, 'common_keys': [],
-                          'model': ObjectForTests},
-                         jg.make_switch_dict('foo', 1, {'a': 1}, model=ObjectForTests))
-        self.assertEqual({'type': 'switch_dictionary', 'name': 'foo', 'switch_key': 1,
-                          'case_keys': {'a': 1}, 'common_keys': [],
-                          'variable': 'x', 'model': ObjectForTests},
-                         jg.make_switch_dict('foo', 1, {'a': 1},
-                                             var='x', model=ObjectForTests))
-
-    # Test a list, with none, var, model and both
-    def test_list(self):
-        schema = jg.make_atom(int, value=1)
-        self.assertEqual({'type': 'list', 'length': 3, 'schema': schema}, jg.make_list(3, schema))
-        self.assertEqual({'type': 'list', 'length': 3, 'schema': schema, 'variable': 'x'},
-                         jg.make_list(3, schema, var='x'))
-        self.assertEqual({'type': 'list', 'length': 3, 'schema': schema, 'model': ObjectForTests},
-                         jg.make_list(3, schema, model=ObjectForTests))
-        self.assertEqual({'type': 'list', 'length': 3, 'schema': schema, 'model': ObjectForTests, 'variable': 'x'},
-                         jg.make_list(3, schema, var='x', model=ObjectForTests))
-
-    # Test the enum element structure, including none, var, model, and both
-    # Also test an enum element where a default is not a member of the enum
-    def test_enum(self):
-        enum_base = ["one", "two", "three"]
-        self.assertEqual({'type': 'enum', 'base': enum_base}, jg.make_enum(enum_base))
-        self.assertEqual({'type': 'enum', 'base': enum_base, 'default': 'two'}, jg.make_enum(enum_base, "two"))
-        self.assertEqual({'type': 'enum', 'base': enum_base, 'default': 'two', 'variable': 'x'},
-                         jg.make_enum(enum_base, "two", var='x'))
-        self.assertEqual({'type': 'enum', 'base': enum_base, 'default': 'two', 'model': ObjectForTests},
-                         jg.make_enum(enum_base, "two", model=ObjectForTests))
-        # Test default with incorrect value
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            jg.make_enum(enum_base, "four")
-        self.assertEqual('bad_enum_value', context.exception.args[0])
-
-    # Test atom structure
-    # Test no default nor value atom
-    # Test default and value atoms
-    # Test that default and value both specified is an error
-    # Test var, model sepcified
-    def test_atom(self):
-        self.assertEqual({'type': 'atom', 'obj_type': str}, jg.make_atom(str))
-        self.assertEqual({'type': 'atom', 'obj_type': str, 'default': ''}, jg.make_atom(str, ''))
-        self.assertEqual({'type': 'atom', 'obj_type': str, 'value': ''}, jg.make_atom(str, value=''))
-
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            jg.make_atom(int, 1, value=2)
-        self.assertEqual(context.exception.args[0], 'both_value_default')
-
-        self.assertEqual({'type': 'atom', 'obj_type': str, 'default': '', 'variable': 'x'},
-                         (jg.make_atom(str, '', var='x')))
-        self.assertEqual({'type': 'atom', 'obj_type': str, 'default': '', 'model': ObjectForTests},
-                         jg.make_atom(str, '', model=ObjectForTests))
+# Helper function
+def make_common_switch():
+    switch_enum = jg.Enum(['a', 'b'], default='a')
+    switch_key = jg.SwitchDict.make_key('switch', switch_enum)
+    a_keys = [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
+              jg.SwitchDict.make_key('a2', jg.Atom(int, 2))]
+    b_keys = [jg.SwitchDict.make_key('b1', jg.Atom(int, 1)),
+              jg.SwitchDict.make_key('b2', jg.Atom(int, 2))]
+    common_keys = [jg.SwitchDict.make_key('c1', jg.Atom(int, 1)),
+                   jg.SwitchDict.make_key('c2', jg.Atom(int, 2))]
+    test_switch = jg.SwitchDict('test', switch_key,
+                                {'a': a_keys, 'b': b_keys}, common_keys)
+    return test_switch
 
 
 # Test the list pruning, compacting
-# It should only remove empty elements at the end, not the middle
+# Pruning should only remove empty elements at the end, not the middle
 class ListTestCases(unittest.TestCase):
     # Test:
     # Empty list
@@ -259,977 +107,707 @@ class ListTestCases(unittest.TestCase):
         self.assertEqual([1, 2, 3], test_list)
 
 
-class JsonParserTestCase(unittest.TestCase):
-    complete_conf = jg.JsonGrammar(None)
-    minimal_conf = jg.JsonGrammar(None, True)
+# Test the structure of the various grammar elements
+# These are brittle, not the best
+class JsonGrammarElementStructureTestCase(unittest.TestCase):
+    def validate_keywords(self, node, var, model, cleanup):
+        if var is None:
+            self.assertIsNone(node.variable)
+        else:
+            self.assertEqual(var, node.variable)
+        if model is None:
+            self.assertIsNone(node.model)
+        else:
+            self.assertEqual(model, node.model)
+        if cleanup is None:
+            self.assertIsNone(node.cleanup)
+        else:
+            self.assertEqual(cleanup, node.cleanup)
 
-    def __init__(self, *args, **kwargs):
-        super(JsonParserTestCase, self).__init__(*args, **kwargs)
-        self.test_switch_enum = jg.make_enum(['a', 'b', 'c'], 'a')
-        self.test_switch_key = jg.make_key('x', self.test_switch_enum)
-        self.test_case_keys = {'a': [jg.make_key('a1', jg.make_atom(int, 1)),
-                                     jg.make_key('a2', jg.make_atom(int, 2)),
-                                     jg.make_key('a3', jg.make_atom(int, 3))],
-                               'b': [jg.make_key('b1', jg.make_atom(int, 1)),
-                                     jg.make_key('b2', jg.make_atom(int, 2)),
-                                     jg.make_key('b3', jg.make_atom(int, 3))],
-                               'c': [jg.make_key('c1', jg.make_atom(int, 1)),
-                                     jg.make_key('c2', jg.make_atom(int, 2)),
-                                     jg.make_key('c3', jg.make_atom(int, 3))]}
-        self.test_switch = jg.make_switch_dict('test', self.test_switch_key, self.test_case_keys)
+    def validate_dict(self, node, name, keys, var, model, cleanup):
+        self.assertEqual(name, node.name)
+        self.assertEqual(keys, node.keys)
+        self.validate_keywords(node, var, model, cleanup)
 
-    # Testing an element, primarily testing vars and models
-    # No difference between complete and minimal?
-    def test_parse_elem(self):
-        var_schema = jg.make_atom(int, 1, var='x')
-        model_schema = jg.make_dict("foo",
-                                    [jg.make_key("a", var_schema),
-                                     jg.make_key("b", jg.make_atom(int, 1))],
+    # Test dict structure, include variable, model and both and none
+    def test_dict(self):
+        self.validate_dict(jg.Dict('foo', [1, 2, 3]),
+                           'foo', [1, 2, 3], None, None, None)
+        self.validate_dict(jg.Dict('foo', [1, 2, 3], var='x'),
+                           'foo', [1, 2, 3], 'x', None, None)
+        self.validate_dict(jg.Dict('foo', [1, 2, 3], model=ObjectForTests),
+                           'foo', [1, 2, 3], None, ObjectForTests, None)
+        self.validate_dict(jg.Dict('foo', [1, 2, 3], cleanup=3),
+                           'foo', [1, 2, 3], None, None, 3)
+        self.validate_dict(jg.Dict('foo', [1, 2, 3], var='x', model=ObjectForTests, cleanup=3),
+                           'foo', [1, 2, 3], 'x', ObjectForTests, 3)
+
+    # Test the switch dictionary, with none, var, model, and both
+    def validate_switch_dict(self, node, name, switch_key, case_keys, common_keys, var, model, cleanup):
+        self.assertEqual(name, node.name)
+        self.assertEqual(switch_key, node.switch_key)
+        self.assertEqual(case_keys, node.case_keys)
+        self.assertEqual(common_keys, node.common_keys)
+        self.validate_keywords(node, var, model, cleanup)
+
+    def test_switch_dict(self):
+        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}),
+                                  'foo', 1, {'a': 1}, [], None, None, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, var='x'),
+                                  'foo', 1, {'a': 1}, [], 'x', None, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, model=ObjectForTests),
+                                  'foo', 1, {'a': 1}, [], None, ObjectForTests, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, var='x', model=ObjectForTests),
+                                  'foo', 1, {'a': 1}, [], 'x', ObjectForTests, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, var='x', model=ObjectForTests, cleanup=3),
+                                  'foo', 1, {'a': 1}, [], 'x', ObjectForTests, 3)
+
+    def validate_list(self, node, length, schema, var, model, cleanup):
+        self.assertEqual(length, node.length)
+        self.assertEqual(schema, node.schema)
+        self.validate_keywords(node, var, model, cleanup)
+
+    # Test a list, with none, var, model and both
+    def test_list(self):
+        schema = jg.Atom(int, value=1)
+        self.validate_list(jg.List(3, schema), 3, schema, None, None, None)
+        self.validate_list(jg.List(3, schema, var='x'), 3, schema, 'x', None, None)
+        self.validate_list(jg.List(3, schema, model=ObjectForTests),
+                           3, schema, None, ObjectForTests, None)
+        self.validate_list(jg.List(3, schema, var='x', model=ObjectForTests),
+                           3, schema, 'x', ObjectForTests, None)
+        self.validate_list(jg.List(3, schema, var='x', model=ObjectForTests, cleanup=3),
+                           3, schema, 'x', ObjectForTests, 3)
+
+    # Test an enum element where a default is not a member of the enum
+    def test_enum(self):
+        enum_base = ["one", "two", "three"]
+        # Test default with incorrect value
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.Enum(enum_base, "four")
+        self.assertEqual('bad_enum_value', context.exception.args[0])
+
+    # Test atom structure
+    # Test that default and value both specified is an error
+    def test_atom(self):
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.Atom(int, 1, value=2)
+        self.assertEqual(context.exception.args[0], 'both_value_default')
+
+
+class JsonGrammarBaseTestCase(unittest.TestCase):
+    def check_target(self, result, target):
+        if target is None:
+            self.assertIsNone(result)
+        else:
+            self.assertEqual(target, result)
+
+    def run_grammar_parse(self, node, elem, complete_target, minimal_target):
+        result = complete_conf.parse(elem, node, "foo", None, [], None)
+        self.check_target(result, complete_target)
+        result = minimal_conf.parse(elem, node, "foo", None, [], None)
+        self.check_target(result, minimal_target)
+
+    def run_grammar_parse_model(self, node, elem, complete_target, minimal_target, var_result):
+        test_model = ObjectForTests()
+        result = complete_conf.parse(elem, node, 'foo', None, [], test_model)
+        self.check_target(result, complete_target)
+        self.check_target(test_model.x, var_result)
+        test_model = ObjectForTests()
+        result = minimal_conf.parse(elem, node, 'foo', None, [], test_model)
+        self.check_target(result, minimal_target)
+        self.check_target(test_model.x, var_result)
+
+    def run_grammar_parse_error(self, schema, elem, code):
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            complete_conf.parse(elem, schema, "foo", None, [], None)
+        self.assertEqual(code, context.exception.args[0])
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            minimal_conf.parse(elem, schema, "foo", None, [], None)
+        self.assertEqual(code, context.exception.args[0])
+
+    def run_grammar_gen(self, node, elem, complete_target, minimal_target):
+        result = complete_conf.gen(elem, node, None, [])
+        self.check_target(result, complete_target)
+        result = minimal_conf.gen(elem, node, None, [])
+        self.check_target(result, minimal_target)
+
+    def run_grammar_gen_error(self, schema, elem, code):
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            complete_conf.gen(elem, schema, None, [])
+        self.assertEqual(code, context.exception.args[0])
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            minimal_conf.gen(elem, schema, None, [])
+        self.assertEqual(code, context.exception.args[0])
+
+    def run_node_parse(self, node, elem, complete_target, minimal_target):
+        result = node.parse(complete_conf, elem, "foo", None, [], None)
+        self.check_target(result, complete_target)
+        result = node.parse(minimal_conf, elem, "foo", None, [], None)
+        self.check_target(result, minimal_target)
+
+    def run_node_parse_model(self, node, elem, complete_target, minimal_target, var_result):
+        test_model = ObjectForTests()
+        result = node.parse(complete_conf, elem, "foo", None, [], test_model)
+        self.check_target(result, complete_target)
+        self.assertEqual(var_result, test_model.x)
+        test_model = ObjectForTests()
+        result = node.parse(minimal_conf, elem, "foo", None, [], test_model)
+        self.check_target(result, minimal_target)
+        self.assertEqual(var_result, test_model.x)
+
+    def run_node_parse_error(self, node, elem, code):
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            node.parse(complete_conf, elem, "foo", None, [], None)
+        self.assertEqual(code, context.exception.args[0])
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            node.parse(minimal_conf, elem, "foo", None, [], None)
+        self.assertEqual(code, context.exception.args[0])
+
+    def run_node_parse_complete_error(self, node, elem, code, target):
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            node.parse(complete_conf, elem, "foo", None, [], None)
+        self.assertEqual(code, context.exception.args[0])
+        result = node.parse(minimal_conf, elem, "foo", None, [], None)
+        self.check_target(result, target)
+
+    def run_node_gen(self, node, elem, complete_target, minimal_target, list_pos=None):
+        if list_pos is None:
+            list_pos = []
+        result = node.gen(complete_conf, elem, None, list_pos)
+        self.check_target(result, complete_target)
+        result = node.gen(minimal_conf, elem, None, list_pos)
+        self.check_target(result, minimal_target)
+
+    def run_node_gen_error(self, node, elem, code, exception=jg.JsonGrammarException):
+        with self.assertRaises(exception) as context:
+            node.gen(complete_conf, elem, None, [])
+        self.assertEqual(code, context.exception.args[0])
+        with self.assertRaises(exception) as context:
+            node.gen(minimal_conf, elem, None, [])
+        self.assertEqual(code, context.exception.args[0])
+
+
+class JsonGrammarParserTestCase(JsonGrammarBaseTestCase):
+
+    def setUp(self):
+        self.var_schema = jg.Atom(int, 1, var='x')
+        self.model_schema = jg.Dict('foo',
+                                    [jg.Dict.make_key("a", self.var_schema),
+                                     jg.Dict.make_key("b", jg.Atom(int, 1))],
                                     model=ObjectForTests)
 
+    def test_parse_errors(self):
         # Test schema is none
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_elem(1, None, "foo", None, [], None)
-        self.assertEqual('no_schema', context.exception.args[0])
+        self.run_grammar_parse_error(None, 1, 'no_schema')
 
+    def test_simple_var_cases(self):
         # Test var in schema, not modified
-        model = ObjectForTests()
-        self.assertIsNone(self.complete_conf.parse_elem(1, var_schema, 'foo', None, [], model))
-        self.assertIsNone(model.x)
+        self.run_grammar_parse_model(self.var_schema, 1, None, None, None)
 
         # Test var in schema, modified
-        model = ObjectForTests()
-        self.assertIsNone(self.complete_conf.parse_elem(2, var_schema, 'foo', None, [], model))
-        self.assertEqual(model.x, 2)
+        self.run_grammar_parse_model(self.var_schema, 2, None, None, 2)
 
+    def test_simple_model_cases(self):
         # Test model in schema, not modified
-        self.assertIsNone(self.complete_conf.parse_elem({'a': 1, 'b': 1}, model_schema, "name",
-                                                        None, [], None))
+        self.run_grammar_parse(self.model_schema, {'a': 1, 'b': 1}, None, None)
 
         # Test model in schema, modified
-        result = self.complete_conf.parse_elem({'a': 2, 'b': 1}, model_schema, "name",
-                                               None, [], None)
-        self.assertTrue(isinstance(result, ObjectForTests))
-        self.assertEqual(True, result.modified)
-        self.assertEqual(2, result.x)
+        target = ObjectForTests()
+        target.x = 2
+        target.modified = True
+        self.run_grammar_parse(self.model_schema, {'a': 2, 'b': 1}, target, target)
 
         # Test model in schema, modified, but some result not added to model
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_elem({'a': 2, 'b': 2}, model_schema, "foo",
-                                          None, [], None)
-        self.assertEqual('unconsumed', context.exception.args[0])
+        self.run_grammar_parse_error(self.model_schema, {'a': 2, 'b': 2},  'unconsumed')
 
+    # Testing an element, primarily testing vars and models
+    def test_model_var_cases(self):
         # Both model and variable in schema
-        inner_schema = jg.make_dict('inner',
-                                    [jg.make_key('x', jg.make_atom(int, 1, var='x'))],
-                                    var='y', model=ObjectForTests)
-        outer_schema = jg.make_dict('outer',
-                                    [jg.make_key('y', inner_schema)], model=Object2ForTests)
+        inner_schema = jg.Dict('inner',
+                               [jg.Dict.make_key('x', jg.Atom(int, 1, var='x'))],
+                               var='y', model=ObjectForTests)
+        outer_schema = jg.Dict('outer',
+                               [jg.Dict.make_key('y', inner_schema)], model=Object2ForTests)
 
         # Test model not modified
-        self.assertIsNone(self.complete_conf.parse_elem({'y': {'x': 1}}, outer_schema, 'outer',
-                                                        None, [], None))
+        self.run_grammar_parse(outer_schema, {'y': {'x': 1}}, None, None)
+        self.assertIsNone(complete_conf.parse({'y': {'x': 1}}, outer_schema, 'outer',
+                                              None, [], None))
 
         # Test model modified
-        outer_schema_model = self.complete_conf.parse_elem({'y': {'x': 2}}, outer_schema, 'outer',
-                                                           None, [], None)
-        self.assertTrue(isinstance(outer_schema_model, Object2ForTests))
-        self.assertEqual(True, outer_schema_model.modified)
-        inner_schema_model = outer_schema_model.y
-        self.assertTrue(isinstance(inner_schema_model, ObjectForTests))
-        self.assertEqual(True, inner_schema_model.modified)
-        self.assertEqual(2, inner_schema_model.x)
+        target = Object2ForTests()
+        target.modified = True
+        target.y = ObjectForTests()
+        target.y.modified = True
+        target.y.x = 2
+        self.run_grammar_parse(outer_schema, {'y': {'x': 2}}, target, target)
 
     # Test that a var appearing as a list elem raises a multiply assigned error
     def test_var_in_list(self):
-        list_schema = jg.make_list(3, jg.make_atom(int, 1, var='x'), model=ObjectForTests)
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_elem([1, 2, 3], list_schema, "foo", None, [], None)
-        self.assertEqual('multiply_assigned_var', context.exception.args[0])
+        list_schema = jg.List(3, jg.Atom(int, 1, var='x'), model=ObjectForTests)
+        self.run_grammar_parse_error(list_schema, [1, 2, 3], 'multiply_assigned_var')
+
+
+class JsonGrammarGenTestCase(JsonGrammarBaseTestCase):
+    def test_elem(self):
+        # Test schema is None
+        self.run_grammar_gen_error(None, 1, 'no_schema')
+
+        # Test dictionary
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom(int, value=2)),
+                               jg.Dict.make_key('c', jg.Atom(int, value=3))])
+        self.run_grammar_gen(test_schema, {'a': 1, 'b': 2, 'c': 3}, {'a': 1, 'b': 2, 'c': 3}, None)
+
+        # Test list
+        test_schema = jg.List(3, jg.Atom(int, value=1))
+        self.run_grammar_gen(test_schema, None, [1, 1, 1], [1, 1, 1])
+
+        # Test atom
+        test_schema = jg.Atom(int, value=1)
+        self.run_grammar_gen(test_schema, 1, 1, None)
+
+        # Test variable expansion
+        test_model = ObjectForTests()
+        test_model.x = 3
+        test_schema = jg.Atom(int, 1, var='x')
+        self.run_grammar_gen(test_schema, test_model, 3, 3)
+
+
+class JsonGrammarDictNodeParseTestCase(JsonGrammarBaseTestCase):
 
     # Test parsing dictionaries, error cases
     # Both complete and minimal
     def test_parse_dict_errors(self):
+        test_dict = jg.Dict('foo', [])
+
         # Dictionary isn't a dict
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(1, jg.make_dict('foo', []), "foo", [], object)
-        self.assertEqual('type_not_dict', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_dict(1, jg.make_dict('foo', []), "foo", [], object)
-        self.assertEqual('type_not_dict', context.exception.args[0])
+        self.run_node_parse_error(test_dict, 1, 'type_not_dict')
 
         # Key errors
         # elem has too many keys
+        test_schema = jg.Dict('foo', [jg.Dict.make_key('a', jg.Atom(int, 1))])
+        self.run_node_parse_error(test_schema, {'a': 1, 'b': 2}, 'dict_bad_keys')
         # elem has too few keys, and some are misnamed
-        # elem has too few keys, complete => error, minimal => parse
+        test_schema = jg.Dict('foo', [jg.Dict.make_key('b', jg.Atom(int, 1)),
+                                      jg.Dict.make_key('c', jg.Atom(int, 2))])
+        self.run_node_parse_error(test_schema, {'a': 1}, 'dict_bad_keys')
+        # elem has too few keys, all correct, complete => error, minimal => parse
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
+                               jg.Dict.make_key('b', jg.Atom(int, 2)),
+                               jg.Dict.make_key('c', jg.Atom(int, 3))])
+        self.run_node_parse_complete_error(test_schema, {'a': 1, 'b': 2}, 'dict_bad_keys', None)
+        self.run_node_parse_complete_error(test_schema, {'a': 2}, 'dict_bad_keys', {'a': 2})
+        self.run_node_parse_complete_error(test_schema, {'b': 1}, 'dict_bad_keys', {'b': 1})
+        self.run_node_parse_complete_error(test_schema, {'a': 2, 'b': 1}, 'dict_bad_keys', {'a': 2, 'b': 1})
         # elem has the right number of keys, but some are named wrong
-        # Key appears twice in dict/schema
-
-        # Too many keys
-        test_elem = {'a': 1, 'b': 2}
-        test_schema = jg.make_dict('foo', [jg.make_key('a', jg.make_atom(int, 1))])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(test_elem, test_schema, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_dict(test_elem, test_schema, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-
-        # Too few keys, some are misnamed
-        test_elem = {'a': 1}
-        test_schema = jg.make_dict('foo', [jg.make_key('b', jg.make_atom(int, 1)),
-                                           jg.make_key('c', jg.make_atom(int, 2))])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(test_elem, test_schema, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_dict(test_elem, test_schema, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-
-        # Too few keys, but all correct
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, 1)),
-                                    jg.make_key('b', jg.make_atom(int, 2)),
-                                    jg.make_key('c', jg.make_atom(int, 3))])
-        test_elem = {'a': 1, 'b': 2}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(test_elem, test_schema, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        self.assertIsNone(self.minimal_conf.parse_dict(test_elem, test_schema, "foo", [], object))
-        test_elems = [{'a': 2}, {'b': 1}, {'a': 2, 'b': 1}]
-        for test_elem in test_elems:
-            with self.assertRaises(jg.JsonGrammarException) as context:
-                self.complete_conf.parse_dict(test_elem, test_schema, "foo", [], object)
-            self.assertEqual('dict_bad_keys', context.exception.args[0])
-            self.assertEqual(test_elem, self.minimal_conf.parse_dict(test_elem, test_schema,
-                                                                     "foo", [], object))
-
-        # Has right number of keys, but name is wrong
-        test_elem = {'a': 1}
-        test_schema = jg.make_dict('foo', [jg.make_key('b', None)])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(test_elem, test_schema, 'foo', [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_dict(test_elem, test_schema, 'foo', [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-
-        # Need to test when grammar is specified incorrectly, and a key appears twice in schema
-        test_schema = jg.make_dict('foo', [jg.make_key('a', jg.make_atom(int, value=0)),
-                                           jg.make_key('a', jg.make_atom(int, value=0))])
-        test_elem = {'a': 0, 'b': 0}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(test_elem, test_schema, 'foo', [], object)
-        self.assertEqual('dict_duplicate_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_dict(test_elem, test_schema, 'foo', [], object)
-        self.assertEqual('dict_duplicate_keys', context.exception.args[0])
+        test_schema = jg.Dict('foo', [jg.Dict.make_key('b', None)])
+        self.run_node_parse_error(test_schema, {'a': 1}, 'dict_bad_keys')
+        # Key appears twice in dict/schema (grammar specified incorrectly)
+        test_schema = jg.Dict('foo', [jg.Dict.make_key('a', jg.Atom(int, value=0)),
+                                      jg.Dict.make_key('a', jg.Atom(int, value=0))])
+        self.run_node_parse_error(test_schema, {'a': 0, 'b': 0}, 'dict_duplicate_keys')
 
     # Test parsing dictionaries
     # Both complete and minimal
     def test_parse_dict(self):
         # Has right number of keys and subparsing
-        test_elem = {'a': 1, 'b': 2}
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, 1)),
-                                    jg.make_key('b', jg.make_atom(int, 2))])
-        self.assertIsNone(self.complete_conf.parse_dict(test_elem, test_schema, "foo", [], object))
-        self.assertIsNone(self.minimal_conf.parse_dict(test_elem, test_schema, "foo", [], object))
-        test_elems = [[{'a': 2, 'b': 2}, {'a': 2}],
-                      [{'a': 1, 'b': 1}, {'b': 1}],
-                      [{'a': 2, 'b': 1}, {'a': 2, 'b': 1}]]
-        for test_elem in test_elems:
-            self.assertEqual(test_elem[1],
-                             self.complete_conf.parse_dict(test_elem[0], test_schema, "foo", [], object))
-            self.assertEqual(test_elem[1],
-                             self.minimal_conf.parse_dict(test_elem[0], test_schema, "foo", [], object))
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
+                               jg.Dict.make_key('b', jg.Atom(int, 2))])
+        self.run_node_parse(test_schema, {'a': 1, 'b': 2}, None, None)
+        self.run_node_parse(test_schema, {'a': 2, 'b': 2}, {'a': 2}, {'a': 2})
+        self.run_node_parse(test_schema, {'a': 1, 'b': 1}, {'b': 1}, {'b': 1})
+        self.run_node_parse(test_schema, {'a': 2, 'b': 1}, {'a': 2, 'b': 1}, {'a': 2, 'b': 1})
 
     # Test parsing dictionaries context
     # Both complete and minimal
     def test_parse_dict_context(self):
         # Test that matching values work
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, value=1)),
-                                    jg.make_key('b', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
-        test_value = {'a': 1, 'b': 1}
-        self.assertIsNone(self.complete_conf.parse_dict(test_value, test_schema, 'foo', [], object))
-        self.assertIsNone(self.minimal_conf.parse_dict(test_value, test_schema, 'foo', [], object))
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
+        self.run_node_parse(test_schema, {'a': 1, 'b': 1}, None, None)
 
         # Test values not matching work
-        test_value = {'a': 1, 'b': 2}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(test_value, test_schema, 'foo', [], object)
-        self.assertEqual('atom_wrong_value', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_dict(test_value, test_schema, 'foo', [], object)
-        self.assertEqual('atom_wrong_value', context.exception.args[0])
+        self.run_node_parse_error(test_schema, {'a': 1, 'b': 2}, 'atom_wrong_value')
 
-        # Test value works against defauts
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, 1)),
-                                    jg.make_key('b', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
-        test_value = {'a': 2, 'b': 2}
-        self.assertEqual({'a': 2},
-                         self.complete_conf.parse_dict(test_value, test_schema, 'foo', [], object))
-        self.assertEqual({'a': 2},
-                         self.minimal_conf.parse_dict(test_value, test_schema, 'foo', [], object))
-
-        test_value = {'a': 2, 'b': 3}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_dict(test_value, test_schema, 'foo', [], object)
-        self.assertEqual('atom_wrong_value', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_dict(test_value, test_schema, 'foo', [], object)
-        self.assertEqual('atom_wrong_value', context.exception.args[0])
+        # Test value works against defaults
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
+                               jg.Dict.make_key('b', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
+        self.run_node_parse(test_schema, {'a': 2, 'b': 2}, {'a': 2}, {'a': 2})
+        self.run_node_parse_error(test_schema, {'a': 2, 'b': 3}, 'atom_wrong_value')
 
         # Test defaults work
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, 1)),
-                                    jg.make_key('b', jg.make_atom(int, lambda elem, ctxt, lp: ctxt['a']))])
-        test_value = {'a': 1, 'b': 1}
-        self.assertIsNone(self.complete_conf.parse_dict(test_value, test_schema, 'foo', [], object))
-        self.assertIsNone(self.minimal_conf.parse_dict(test_value, test_schema, 'foo', [], object))
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
+                               jg.Dict.make_key('b', jg.Atom(int, lambda elem, ctxt, lp: ctxt['a']))])
+        self.run_node_parse(test_schema, {'a': 1, 'b': 1}, None, None)
+        self.run_node_parse(test_schema, {'a': 1, 'b': 2}, {'b': 2}, {'b': 2})
+        self.run_node_parse(test_schema, {'a': 2, 'b': 2}, {'a': 2}, {'a': 2})
+        self.run_node_parse(test_schema, {'a': 2, 'b': 1}, {'a': 2, 'b': 1}, {'a': 2, 'b': 1})
 
-        test_elems = [[{'a': 1, 'b': 2}, {'b': 2}],
-                      [{'a': 2, 'b': 2}, {'a': 2}],
-                      [{'a': 2, 'b': 1}, {'a': 2, 'b': 1}]]
-        for test_elem in test_elems:
-            self.assertEqual(test_elem[1],
-                             self.complete_conf.parse_dict(test_elem[0], test_schema, "foo", [], object))
-            self.assertEqual(test_elem[1],
-                             self.minimal_conf.parse_dict(test_elem[0], test_schema, "foo", [], object))
+    def test_dict_required_key(self):
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, 1), required=True)])
+        self.run_node_parse_error(test_schema, {}, 'dict_bad_keys')
+
+
+class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
+    def __init__(self, *args, **kwargs):
+        super(JsonGrammarSwitchDictNodeParseTestCase, self).__init__(*args, **kwargs)
+        self.test_switch_enum = jg.Enum(['a', 'b', 'c'], 'a')
+        self.test_switch_key = jg.SwitchDict.make_key('x', self.test_switch_enum)
+        self.test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
+                                     jg.SwitchDict.make_key('a2', jg.Atom(int, 2)),
+                                     jg.SwitchDict.make_key('a3', jg.Atom(int, 3))],
+                               'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1)),
+                                     jg.SwitchDict.make_key('b2', jg.Atom(int, 2)),
+                                     jg.SwitchDict.make_key('b3', jg.Atom(int, 3))],
+                               'c': [jg.SwitchDict.make_key('c1', jg.Atom(int, 1)),
+                                     jg.SwitchDict.make_key('c2', jg.Atom(int, 2)),
+                                     jg.SwitchDict.make_key('c3', jg.Atom(int, 3))]}
+        self.test_switch = jg.SwitchDict('test', self.test_switch_key, self.test_case_keys)
 
     # Test parsing dictionaries, error cases
     # Both complete and minimal
     def test_parse_switch_dict_errors(self):
         # Dictionary isn't a dict
-        test_elem = 1
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('type_not_switch_dict', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('type_not_switch_dict', context.exception.args[0])
-
+        self.run_node_parse_error(self.test_switch, 1, 'type_not_dict')
         # Is a dictionary, but missing switch key
-        test_elem = {'a': 1}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('missing_switch', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('missing_switch', context.exception.args[0])
-
+        self.run_node_parse_error(self.test_switch, {'a': 1}, 'missing_switch')
         # Dictionary is a dict, switch matches, but has wrong number of keys
         # Too few keys, all correct
-        test_elem = {'x': 'a', 'a1': 1, 'a2': 2}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual(context.exception.args[0], 'dict_bad_keys')
-        self.assertIsNone(self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object))
+        self.run_node_parse_complete_error(self.test_switch, {'x': 'a', 'a1': 1, 'a2': 2}, 'dict_bad_keys', None)
         #   Too few keys, some incorrect
-        test_elem = {'x': 'a', 'a1': 1, 'a4': 2}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
+        self.run_node_parse_error(self.test_switch, {'x': 'a', 'a1': 1, 'a4': 2}, 'dict_bad_keys')
         #   Too many keys, some incorrect
-        test_elem = {'x': 'a', 'a1': 1, 'a2': 2, 'a3': 3, 'a4': 4}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-
+        self.run_node_parse_error(self.test_switch, {'x': 'a', 'a1': 1, 'a2': 2, 'a3': 3, 'a4': 4}, 'dict_bad_keys')
         # switch matches Has right number of keys, but name is wrong
-        test_elem = {'x': 'a', 'a1': 1, 'a2': 2, 'a4': 3}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], object)
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
+        self.run_node_parse_error(self.test_switch, {'x': 'a', 'a1': 1, 'a2': 2, 'a4': 3}, 'dict_bad_keys')
 
         # Need to test when grammar is specified incorrectly, and a key appears twice in schema
-        switch_key = jg.make_key('x', jg.make_enum(['a', 'b']))
-        case_keys = {'a': [jg.make_key('x', jg.make_atom(str, 'z'))],
-                     'b': [jg.make_key('b1', jg.make_atom(int))]}
-        test_switch = jg.make_switch_dict('foo', switch_key, case_keys)
-        test_value = {'x': 'a', 'a1': 0}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_value, test_switch, 'foo', [], None)
-        self.assertEqual('dict_duplicate_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict(test_value, test_switch, 'foo', [], None)
-        self.assertEqual('dict_duplicate_keys', context.exception.args[0])
-        case_keys = {'a': [jg.make_key('a1', jg.make_atom(int, value=0)),
-                           jg.make_key('a1', jg.make_atom(int, 1))],
-                     'b': [jg.make_key('b1', jg.make_atom(int)),
-                           jg.make_key('b2', jg.make_atom(int))]}
-        test_switch = jg.make_switch_dict('foo', switch_key, case_keys)
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict(test_value, test_switch, 'foo', [], None)
-        self.assertEqual('dict_duplicate_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict(test_value, test_switch, 'foo', [], None)
-        self.assertEqual('dict_duplicate_keys', context.exception.args[0])
+        switch_key = jg.SwitchDict.make_key('x', jg.Enum(['a', 'b'], None))
+        case_keys = {'a': [jg.SwitchDict.make_key('x', jg.Atom(str, 'z'))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int))]}
+        test_switch = jg.SwitchDict('foo', switch_key, case_keys)
+        self.run_node_parse_error(test_switch, {'x': 'a', 'a1': 0}, 'dict_duplicate_keys')
+
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=0)),
+                           jg.SwitchDict.make_key('a1', jg.Atom(int, 1))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int)),
+                           jg.SwitchDict.make_key('b2', jg.Atom(int))]}
+        test_switch = jg.SwitchDict('foo', switch_key, case_keys)
+        self.run_node_parse_error(test_switch, {'x': 'a', 'a1': 0}, 'dict_duplicate_keys')
 
     # Test parsing dictionaries
     # Both complete and minimal
     def test_parse_switch_dict(self):
         # Has right number of keys
-        test_elem = {'x': 'a', 'a1': 1, 'a2': 2, 'a3': 3}
-        self.assertIsNone(self.complete_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], None))
-        self.assertIsNone(self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], None))
+        self.run_node_parse(self.test_switch, {'x': 'a', 'a1': 1, 'a2': 2, 'a3': 3}, None, None)
 
-        tests = [[{'x': 'b', 'b1': 1, 'b2': 2, 'b3': 3}, {'x': 'b'}],
-                 [{'x': 'b', 'b1': 2, 'b2': 2, 'b3': 3}, {'x': 'b', 'b1': 2}],
-                 [{'x': 'b', 'b1': 2, 'b2': 4, 'b3': 6}, {'x': 'b', 'b1': 2, 'b2': 4, 'b3': 6}]]
-        for test in tests:
-            self.assertEqual(test[1],
-                             self.complete_conf.parse_switch_dict(test[0], self.test_switch, "foo", [], None))
+        self.run_node_parse(self.test_switch, {'x': 'b', 'b1': 1, 'b2': 2, 'b3': 3},
+                            {'x': 'b'}, {'x': 'b'})
+        self.run_node_parse(self.test_switch, {'x': 'b', 'b1': 2, 'b2': 2, 'b3': 3},
+                            {'x': 'b', 'b1': 2}, {'x': 'b', 'b1': 2})
+        self.run_node_parse(self.test_switch, {'x': 'b', 'b1': 2, 'b2': 4, 'b3': 6},
+                            {'x': 'b', 'b1': 2, 'b2': 4, 'b3': 6}, {'x': 'b', 'b1': 2, 'b2': 4, 'b3': 6})
 
         # Has too few keys
-        test_elem = {'x': 'a', 'a1': 1, 'a2': 2}
-        self.assertIsNone(self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], None))
-
-        test_elem = {'x': 'b', 'b1': 1, 'b2': 2}
-        test_result = {'x': 'b'}
-        self.assertEqual(test_result,
-                         self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], None))
-
-        test_elem = {'x': 'b', 'b1': 2, 'b2': 2}
-        test_result = {'x': 'b', 'b1': 2}
-        self.assertEqual(test_result,
-                         self.minimal_conf.parse_switch_dict(test_elem, self.test_switch, "foo", [], None))
+        self.run_node_parse_complete_error(self.test_switch, {'x': 'a', 'a1': 1, 'a2': 2},
+                                           'dict_bad_keys', None)
+        self.run_node_parse_complete_error(self.test_switch, {'x': 'b', 'b1': 1, 'b2': 2},
+                                           'dict_bad_keys', {'x': 'b'})
+        self.run_node_parse_complete_error(self.test_switch, {'x': 'b', 'b1': 2, 'b2': 2},
+                                           'dict_bad_keys', {'x': 'b', 'b1': 2})
 
     def test_parse_switch_dict_switch_var(self):
-        switch_enum = jg.make_enum(['a', 'b'], var='x')
-        switch_key = jg.make_key('x', switch_enum)
-        case_keys = {'a': [jg.make_key('a1', jg.make_atom(int, value=1))],
-                     'b': [jg.make_key('b1', jg.make_atom(int, value=1))]}
-        test_switch = jg.make_switch_dict('test', switch_key, case_keys)
-        test_model = ObjectForTests()
-
-        self.assertIsNone(self.complete_conf.parse_switch_dict({'x': 'a', 'a1': 1}, test_switch, 'foo', [], test_model))
-        self.assertEqual('a', test_model.x)
-        test_model = ObjectForTests()
-        self.assertIsNone(self.minimal_conf.parse_switch_dict({'x': 'b', 'b1': 1}, test_switch, 'foo', [], test_model))
-        self.assertEqual('b', test_model.x)
+        switch_enum = jg.Enum(['a', 'b'], None, var='x')
+        switch_key = jg.SwitchDict.make_key('x', switch_enum)
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=1))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, value=1))]}
+        test_switch = jg.SwitchDict('test', switch_key, case_keys)
+        self.run_node_parse_model(test_switch, {'x': 'a', 'a1': 1}, None, None, 'a')
+        self.run_node_parse_model(test_switch, {'x': 'b', 'b1': 1}, None, None, 'b')
 
     def test_parse_switch_dict_context(self):
         # Test switch dict context
         # Test non switch key is a value context function, success and failure
-        switch_enum = jg.make_enum(['a', 'b'], 'a')
-        switch_key = jg.make_key('x', switch_enum)
-        case_keys = {'a': [jg.make_key('a1', jg.make_atom(int, value=1)),
-                           jg.make_key('a2', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['a1']))],
-                     'b': [jg.make_key('b1', jg.make_atom(int, 1))]}
-        test_switch = jg.make_switch_dict('test', switch_key, case_keys)
-
-        self.assertIsNone(
-            self.complete_conf.parse_switch_dict({'x': 'a', 'a1': 1, 'a2': 1}, test_switch, 'foo', [], None))
-        self.assertIsNone(
-            self.minimal_conf.parse_switch_dict({'x': 'a', 'a1': 1, 'a2': 1}, test_switch, 'foo', [], None))
-
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict({'x': 'a', 'a1': 1, 'a2': 2}, test_switch, 'foo', [],
-                                                None)
-        self.assertEqual(context.exception.args[0], 'atom_wrong_value')
-
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_switch_dict({'x': 'a', 'a1': 1, 'a2': 2}, test_switch, 'foo', [],
-                                                 None)
-        self.assertEqual(context.exception.args[0], 'atom_wrong_value')
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_switch_dict({'x': 'a', 'a1': 1, 'a2': 2}, test_switch, 'foo', [],
-                                                None)
-        self.assertEqual(context.exception.args[0], 'atom_wrong_value')
+        switch_enum = jg.Enum(['a', 'b'], 'a')
+        switch_key = jg.SwitchDict.make_key('x', switch_enum)
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=1)),
+                           jg.SwitchDict.make_key('a2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a1']))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1))]}
+        test_switch = jg.SwitchDict('test', switch_key, case_keys)
+        self.run_node_parse(test_switch, {'x': 'a', 'a1': 1, 'a2': 1}, None, None)
+        self.run_node_parse_error(test_switch, {'x': 'a', 'a1': 1, 'a2': 2}, 'atom_wrong_value')
 
         # Test non switch key is a default context function, match and doesn't match
-        case_keys = {'a': [jg.make_key('a1', jg.make_atom(int, 1)),
-                           jg.make_key('a2', jg.make_atom(int, lambda elem, ctxt, lp: ctxt['a1']))],
-                     'b': [jg.make_key('b1', jg.make_atom(int, 1))]}
-        test_switch = jg.make_switch_dict('test', switch_key, case_keys)
-
-        self.assertIsNone(
-            self.complete_conf.parse_switch_dict({'x': 'a', 'a1': 1, 'a2': 1}, test_switch, 'foo', [], None))
-        self.assertIsNone(
-            self.minimal_conf.parse_switch_dict({'x': 'a', 'a1': 1, 'a2': 1}, test_switch, 'foo', [], None))
-
-        tests = [[{'x': 'a', 'a1': 2, 'a2': 2}, {'a1': 2}],
-                 [{'x': 'a', 'a1': 1, 'a2': 2}, {'a2': 2}],
-                 [{'x': 'a', 'a1': 2, 'a2': 3}, {'a1': 2, 'a2': 3}]]
-        for test in tests:
-            self.assertEqual(test[1], self.complete_conf.parse_switch_dict(test[0], test_switch, 'foo', [], None))
-            self.assertEqual(test[1], self.minimal_conf.parse_switch_dict(test[0], test_switch, 'foo', [], None))
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
+                           jg.SwitchDict.make_key('a2', jg.Atom(int, lambda elem, ctxt, lp: ctxt['a1']))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1))]}
+        test_switch = jg.SwitchDict('test', switch_key, case_keys)
+        self.run_node_parse(test_switch, {'x': 'a', 'a1': 1, 'a2': 1}, None, None)
+        self.run_node_parse(test_switch, {'x': 'a', 'a1': 2, 'a2': 2}, {'a1': 2}, {'a1': 2})
+        self.run_node_parse(test_switch, {'x': 'a', 'a1': 1, 'a2': 2}, {'a2': 2}, {'a2': 2})
+        self.run_node_parse(test_switch, {'x': 'a', 'a1': 2, 'a2': 3},
+                            {'a1': 2, 'a2': 3}, {'a1': 2, 'a2': 3})
 
     def test_parse_switch_dict_common_keys(self):
         test_switch = make_common_switch()
-        test_elem = {'switch': 'a', 'a1': 1, 'a2': 2, 'c1': 1, 'c2': 2}
-        self.assertIsNone(self.complete_conf.parse_switch_dict(test_elem, test_switch, 'test',
-                                                               [], None))
-        self.assertIsNone(self.minimal_conf.parse_switch_dict(test_elem, test_switch, 'test',
-                                                              [], None))
+        self.run_node_parse(test_switch, {'switch': 'a', 'a1': 1, 'a2': 2, 'c1': 1, 'c2': 2},
+                            None, None)
 
+
+class JsonGrammarListNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_list(self):
         # list isn't a list
-        test_schema = jg.make_list(1, jg.make_atom(int, value=1))
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_list(3, test_schema, "foo", [], object)
-        self.assertEqual('type_not_list', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_list(3, test_schema, "foo", [], object)
-        self.assertEqual('type_not_list', context.exception.args[0])
+        test_schema = jg.List(1, jg.Atom(int, value=1))
+        self.run_node_parse_error(test_schema, 3, 'type_not_list')
 
         # List is wrong length
-        test_schema = jg.make_list(2, jg.make_atom(int, value=1))
+        test_schema = jg.List(2, jg.Atom(int, value=1))
         # Too long
-        test_elem = [1, 2, 3]
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_list(test_elem, test_schema, "foo", [], object)
-        self.assertEqual('list_bad_length', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_list(test_elem, test_schema, "foo", [], object)
-        self.assertEqual('list_bad_length', context.exception.args[0])
+        self.run_node_parse_error(test_schema, [1, 2, 3], 'list_bad_length')
         # Too short
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_list([1], test_schema, "foo", [], object)
-        self.assertEqual('list_bad_length', context.exception.args[0])
+        self.run_node_parse_complete_error(test_schema, [1], 'list_bad_length', None)
 
         # List is a list and right length, check list index
-        test_schema = jg.make_list(3, jg.make_atom(int, value=lambda elem, ctxt, x: x[-1]))
-        test_elem = [0, 1, 2]
-        self.assertIsNone(self.complete_conf.parse_list(test_elem, test_schema, "foo", [], object))
-        self.assertIsNone(self.minimal_conf.parse_list(test_elem, test_schema, "foo", [], object))
+        test_schema = jg.List(3, jg.Atom(int, value=lambda elem, ctxt, x: x[-1]))
+        self.run_node_parse(test_schema, [0, 1, 2], None, None)
 
         # test nested lists
-        test_schema = jg.make_list(3, jg.make_list(3, jg.make_atom(int, value=lambda elem, ctxt, x: x[-1] + x[-2])))
-        test_elem = [[0, 1, 2], [1, 2, 3], [2, 3, 4]]
-        self.assertIsNone(self.complete_conf.parse_list(test_elem, test_schema, "foo", [], object))
-        self.assertIsNone(self.minimal_conf.parse_list(test_elem, test_schema, "foo", [], object))
+        test_schema = jg.List(3, jg.List(3, jg.Atom(int, value=lambda elem, ctxt, x: x[-1] + x[-2])))
+        self.run_node_parse(test_schema, [[0, 1, 2], [1, 2, 3], [2, 3, 4]], None, None)
 
         # Test lists with defaults
-        test_schema = jg.make_list(3, jg.make_atom(int, 1))
-
+        test_schema = jg.List(3, jg.Atom(int, 1))
         # test list with all matching defaults
-        test_elem = [1, 1, 1]
-        self.assertIsNone(self.complete_conf.parse_list(test_elem, test_schema, "foo", [], None))
-        self.assertIsNone(self.minimal_conf.parse_list(test_elem, test_schema, "foo", [], None))
+        self.run_node_parse(test_schema, [1, 1, 1], None, None)
 
-        # test list with matching defaults
-        tests = [[[2, 1, 1], [2, None, None], [2]],
-                 [[1, 2, 1], [None, 2, None], [None, 2]],
-                 [[2, 2, 1], [2, 2, None], [2, 2]],
-                 [[1, 1, 2], [None, None, 2], [None, None, 2]],
-                 [[2, 1, 2], [2, None, 2], [2, None, 2]],
-                 [[1, 2, 2], [None, 2, 2], [None, 2, 2]],
-                 [[2, 2, 2], [2, 2, 2], [2, 2, 2]]]
-        for test in tests:
-            self.assertEqual(test[1], self.complete_conf.parse_list(test[0], test_schema, "foo", [], None))
-            self.assertEqual(test[2], self.minimal_conf.parse_list(test[0], test_schema, "foo", [], None))
+        self.run_node_parse(test_schema, [2, 1, 1], [2, None, None], [2])
+        self.run_node_parse(test_schema, [1, 2, 1], [None, 2, None], [None, 2])
+        self.run_node_parse(test_schema, [2, 2, 1], [2, 2, None], [2, 2])
+        self.run_node_parse(test_schema, [1, 1, 2], [None, None, 2], [None, None, 2])
+        self.run_node_parse(test_schema, [2, 1, 2], [2, None, 2], [2, None, 2])
+        self.run_node_parse(test_schema, [1, 2, 2], [None, 2, 2], [None, 2, 2])
+        self.run_node_parse(test_schema, [2, 2, 2], [2, 2, 2], [2, 2, 2])
 
     def test_parse_unlimited_list(self):
-        zero_list = jg.make_list(0, jg.make_atom(int, 1))
-
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_list([], zero_list, "foo", [], object)
-        self.assertEqual('unlimited_list_complete_grammar', context.exception.args[0])
-
-        self.assertIsNone(self.minimal_conf.parse_list([], zero_list, "foo", [], object))
-        self.assertIsNone(self.minimal_conf.parse_list([1], zero_list, "foo", [], object))
-        self.assertIsNone(self.minimal_conf.parse_list([1, 1, 1], zero_list, "foo", [], object))
-        self.assertEqual([2], self.minimal_conf.parse_list([2], zero_list, "foo", [], object))
-        self.assertEqual([None, 2, 3],
-                         self.minimal_conf.parse_list([1, 2, 3], zero_list, "foo", [], object))
+        zero_list = jg.List(0, jg.Atom(int, 1))
+        self.run_node_parse_complete_error(zero_list, [], 'unlimited_list_complete_grammar', None)
+        self.run_node_parse_complete_error(zero_list, [1], 'unlimited_list_complete_grammar', None)
+        self.run_node_parse_complete_error(zero_list, [1, 1, 1], 'unlimited_list_complete_grammar', None)
+        self.run_node_parse_complete_error(zero_list, [2], 'unlimited_list_complete_grammar', [2])
+        self.run_node_parse_complete_error(zero_list, [1, 2, 3], 'unlimited_list_complete_grammar', [None, 2, 3])
 
     def test_parse_list_minimal(self):
-        test_schema = jg.make_list(10, jg.make_atom(int, default=1))
+        test_schema = jg.List(10, jg.Atom(int, default=1))
 
-        # emptylist
-        test_elem = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        self.assertIsNone(self.minimal_conf.parse_list(test_elem, test_schema, "foo", [], object))
+        # empty list
+        self.run_node_parse(test_schema, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], None, None)
+        # full list
+        self.run_node_parse(test_schema, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                            [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        # List empty at beginning, one or two slots
+        self.run_node_parse(test_schema, [1, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                            [None, 3, 4, 5, 6, 7, 8, 9, 10, 11], [None, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        self.run_node_parse(test_schema, [1, 1, 4, 5, 6, 7, 8, 9, 10, 11],
+                            [None, None, 4, 5, 6, 7, 8, 9, 10, 11], [None, None, 4, 5, 6, 7, 8, 9, 10, 11])
+        # List empty at end, one or two slots
+        self.run_node_parse(test_schema, [2, 3, 4, 5, 6, 7, 8, 9, 10, 1],
+                            [2, 3, 4, 5, 6, 7, 8, 9, 10, None], [2, 3, 4, 5, 6, 7, 8, 9, 10])
+        self.run_node_parse(test_schema, [2, 3, 4, 5, 6, 7, 8, 9, 1, 1],
+                            [2, 3, 4, 5, 6, 7, 8, 9, None, None], [2, 3, 4, 5, 6, 7, 8, 9])
+        # List empty in middle, one or two slots
+        self.run_node_parse(test_schema, [2, 3, 4, 5, 1, 7, 8, 9, 10, 11],
+                            [2, 3, 4, 5, None, 7, 8, 9, 10, 11], [2, 3, 4, 5, None, 7, 8, 9, 10, 11])
+        self.run_node_parse(test_schema, [2, 3, 4, 5, 1, 1, 8, 9, 10, 11],
+                            [2, 3, 4, 5, None, None, 8, 9, 10, 11], [2, 3, 4, 5, None, None, 8, 9, 10, 11])
+        # List empty at beginning, middle and end
+        self.run_node_parse(test_schema, [1, 1, 4, 5, 1, 1, 8, 9, 1, 1],
+                            [None, None, 4, 5, None, None, 8, 9, None, None], [None, None, 4, 5, None, None, 8, 9])
+        # Shorter list than expected
+        self.run_node_parse_complete_error(test_schema, [2, 3, 4, 5], 'list_bad_length', [2, 3, 4, 5])
 
-        tests = [
-            # full list
-            [[2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]],
-            # List empty at beginning, one or two slots
-            [[1, 3, 4, 5, 6, 7, 8, 9, 10, 11], [None, 3, 4, 5, 6, 7, 8, 9, 10, 11]],
-            [[1, 1, 4, 5, 6, 7, 8, 9, 10, 11], [None, None, 4, 5, 6, 7, 8, 9, 10, 11]],
-            # List empty at end, one or two slots
-            [[2, 3, 4, 5, 6, 7, 8, 9, 10, 1], [2, 3, 4, 5, 6, 7, 8, 9, 10]],
-            [[2, 3, 4, 5, 6, 7, 8, 9, 1, 1], [2, 3, 4, 5, 6, 7, 8, 9]],
-            # List empty in middle, one or two slots
-            [[2, 3, 4, 5, 1, 7, 8, 9, 10, 11], [2, 3, 4, 5, None, 7, 8, 9, 10, 11]],
-            [[2, 3, 4, 5, 1, 1, 8, 9, 10, 11], [2, 3, 4, 5, None, None, 8, 9, 10, 11]],
-            # List empty at beginning, middle and end
-            [[1, 1, 4, 5, 1, 1, 8, 9, 1, 1], [None, None, 4, 5, None, None, 8, 9]],
-            # Shorter list than expected
-            [[2, 3, 4, 5], [2, 3, 4, 5]]
-        ]
 
-        for test in tests:
-            self.assertEqual(test[1], self.minimal_conf.parse_list(test[0], test_schema, 'foo', [], ObjectForTests()))
-
+class JsonGrammarEnumNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_enum(self):
-        test_enum = jg.make_enum(['foo', 'bar', 'baz'])
-        test_enum_default = jg.make_enum(['foo', 'bar', 'baz'], 'bar')
+        test_enum = jg.Enum(['foo', 'bar', 'baz'], None)
+        test_enum_default = jg.Enum(['foo', 'bar', 'baz'], 'bar')
 
         # enum is right type, right value
-        for enum_value in test_enum['base']:
-            self.assertEqual(enum_value, self.complete_conf.parse_enum(enum_value, test_enum, "test"))
-            self.assertEqual(enum_value, self.minimal_conf.parse_enum(enum_value, test_enum, "test"))
+        for enum_value in test_enum.base:
+            self.run_node_parse(test_enum, enum_value, enum_value, enum_value)
 
         # enum has right type but wrong value
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_enum('bum', test_enum, "foo")
-        self.assertEqual('bad_enum_value', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_enum('bum', test_enum, "foo")
-        self.assertEqual('bad_enum_value', context.exception.args[0])
+        self.run_node_parse_error(test_enum, 'bum', 'bad_enum_value')
 
         # Now test defaults
         # Atom is right type, default value
-        self.assertIsNone(self.complete_conf.parse_enum('bar', test_enum_default, "foo"))
-        self.assertIsNone(self.minimal_conf.parse_enum('bar', test_enum_default, "foo"))
+        self.run_node_parse(test_enum_default, 'bar', None, None)
 
         # Atom has right type not default value
-        self.assertEqual('foo', self.complete_conf.parse_enum('foo', test_enum_default, "foo"))
-        self.assertEqual('foo', self.minimal_conf.parse_enum('foo', test_enum_default, "foo"))
+        self.run_node_parse(test_enum_default, 'foo', 'foo', 'foo')
 
+
+class JsonGrammarAtomNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_atom_errors(self):
         # Atom has both default and value
-        test_schema = jg.make_atom(str, value='123')
-        test_schema['default'] = '456'
-        test_elem = '3'
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object)
-        self.assertEqual('both_value_default', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object)
-        self.assertEqual('both_value_default', context.exception.args[0])
+        test_schema = jg.Atom(str, value='123')
+        test_schema.default = '456'
+        self.run_node_parse_error(test_schema, '3', 'both_value_default')
 
         # Atom is wrong type
-        test_schema = jg.make_atom(str, value='blah')
-        test_elem = 3
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object)
-        self.assertEqual('atom_wrong_type', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object)
-        self.assertEqual('atom_wrong_type', context.exception.args[0])
-
-    def atom_tests(self, test_schema):
-        test_elem = 3
-        self.assertIsNone(self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
-        self.assertIsNone(self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
-
-        # Atom has right type but wrong value
-        test_elem = 4
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object)
-        self.assertEqual('atom_wrong_value', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object)
-        self.assertEqual('atom_wrong_value', context.exception.args[0])
+        test_schema = jg.Atom(str, value='blah')
+        self.run_node_parse_error(test_schema, 3, 'atom_wrong_type')
 
     def test_parse_atom(self):
-        # Atom is right type, right value
-        self.atom_tests(jg.make_atom(int, value=3))
+        test_schema = jg.Atom(int, value=3)
+        self.run_node_parse(test_schema, 3, None, None)
+        self.run_node_parse_error(test_schema, 4, 'atom_wrong_value')
 
-        # Atom is right type, right value via function
-        self.atom_tests(jg.make_atom(int, value=lambda elem, ctxt, lp: 3))
+        test_schema = jg.Atom(int, value=lambda elem, ctxt, lp: 3)
+        self.run_node_parse(test_schema, 3, None, None)
+        self.run_node_parse_error(test_schema, 4, 'atom_wrong_value')
 
         # Now test defaults
         # Atom is right type, default value
-        test_schema = jg.make_atom(int, 3)
-        test_elem = 3
-        self.assertIsNone(self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
-        self.assertIsNone(self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
-
+        test_schema = jg.Atom(int, 3)
+        self.run_node_parse(test_schema, 3, None, None)
         # Atom has right type not default value
-        test_elem = 4
-        self.assertEqual(test_elem, self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
-        self.assertEqual(test_elem, self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
+        self.run_node_parse(test_schema, 4, 4, 4)
 
         # Atom is right type, default value via function
-        test_schema = jg.make_atom(int, lambda elem, ctxt, lp: 3)
-        test_elem = 3
-        self.assertIsNone(self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
-        self.assertIsNone(self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
+        test_schema = jg.Atom(int, lambda elem, ctxt, lp: 3)
+        self.run_node_parse(test_schema, 3, None, None)
 
         # Atom is right type but wrong value via function
-        test_elem = 4
-        self.assertEqual(test_elem, self.complete_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
-        self.assertEqual(test_elem, self.minimal_conf.parse_atom(test_elem, test_schema, "foo", None, [], object))
+        self.run_node_parse(test_schema, 4, 4, 4)
 
 
-class JsonGeneratorTestCase(unittest.TestCase):
-    complete_conf = jg.JsonGrammar(None)
-    minimal_conf = jg.JsonGrammar(None, True)
-
-    def test_atom(self):
-        # Value Atom, int, int from a function, string and bool
-        value_int_atom = jg.make_atom(int, value=1)
-        value_int_fn_atom = jg.make_atom(int, value=lambda elem, ctxt, lp: 1)
-        value_str_atom = jg.make_atom(str, value="a")
-        value_bool_atom = jg.make_atom(bool, value=True)
-
-        default_int_atom = jg.make_atom(int, 1)
-        default_int_fn_atom = jg.make_atom(int, lambda elem, ctxt, lp: 1)
-        default_str_atom = jg.make_atom(str, "a")
-        default_bool_atom = jg.make_atom(bool, True)
-
-        # Val atom w/ incorrect value
-        tests = [
-            [2, value_int_atom],
-            [2, value_int_fn_atom],
-            ['b', value_str_atom],
-            [False, value_bool_atom]
-        ]
-
-        for test in tests:
-            with self.assertRaises(jg.JsonGrammarException) as context:
-                self.complete_conf.gen_atom(test[0], test[1], None, [])
-            self.assertEqual('model_schema_mismatch', context.exception.args[0])
-            with self.assertRaises(jg.JsonGrammarException) as context:
-                self.minimal_conf.gen_atom(test[0], test[1], None, [])
-            self.assertEqual('model_schema_mismatch', context.exception.args[0])
-
-        test_model = ObjectForTests()
-        tests = [
-            # Val atom w/ None,
-            [None, value_int_atom, 1, 1],
-            [None, value_int_fn_atom, 1, 1],
-            [None, value_str_atom, 'a', 'a'],
-            [None, value_bool_atom, True, True],
-            # Val atom w/ correct value
-            [1, value_int_atom, 1, None],
-            [1, value_int_fn_atom, 1, None],
-            ['a', value_str_atom, 'a', None],
-            [True, value_bool_atom, True, None],
-            # Val atom with model value
-            [test_model, value_int_atom, 1, 1],
-            [test_model, value_int_fn_atom, 1, 1],
-            [test_model, value_str_atom, 'a', 'a'],
-            [test_model, value_bool_atom, True, True],
-            # Def Atom with none
-            [None, default_int_atom, 1, None],
-            [None, default_int_fn_atom, 1, None],
-            [None, default_str_atom, 'a', None],
-            [None, default_bool_atom, True, None],
-            # Def Atom with default
-            [1, default_int_atom, 1, None],
-            [1, default_int_fn_atom, 1, None],
-            ['a', default_str_atom, 'a', None],
-            [True, default_bool_atom, True, None],
-            # Def Atom with value different than default
-            [2, default_int_atom, 2, 2],
-            [2, default_int_fn_atom, 2, 2],
-            ['b', default_str_atom, 'b', 'b'],
-            [False, default_bool_atom, False, False],
-            # Def atom with an (unused) model
-            [test_model, default_int_atom, 1, None],
-            [test_model, default_int_fn_atom, 1, None],
-            [test_model, default_str_atom, 'a', None],
-            [test_model, default_bool_atom, True, None]
-        ]
-
-        for test in tests:
-            self.assertEqual(test[2], self.complete_conf.gen_atom(test[0], test[1], None, []))
-            self.assertEqual(test[3], self.minimal_conf.gen_atom(test[0], test[1], None, []))
-
-    def test_enum(self):
-        test_enum = jg.make_enum(["one", "two", "three", "four"])
-        test_default_enum = jg.make_enum(["one", "two", "three", "four"], default="one")
-        test_model = ObjectForTests()
-
-        tests = [
-            # Enum with no model value
-            [None, test_enum],
-        ]
-
-        for test in tests:
-            with self.assertRaises(jg.JsonGrammarException) as context:
-                self.complete_conf.gen_enum(test[0], test[1], None, [])
-            self.assertEqual('enum_no_default', context.exception.args[0])
-            with self.assertRaises(jg.JsonGrammarException) as context:
-                self.minimal_conf.gen_enum(test[0], test[1], None, [])
-            self.assertEqual('enum_no_default', context.exception.args[0])
-
-        tests = [
-            # Enum with no model value
-            [None, test_default_enum, "one", None, "default no model"],
-            # Enum with model value, same and different than default
-            ["one", test_enum, "one", "one", "no default model==1"],
-            ["one", test_default_enum, "one", None, "default model==1"],
-            ["two", test_enum, "two", "two", "no default model==2"],
-            ["two", test_default_enum, "two", "two", "default model==2"],
-            # Def atom with an (unused) model
-            [test_model, test_default_enum, "one", None, "model object default"]
-        ]
-
-        for test in tests:
-            self.assertEqual(test[2], self.complete_conf.gen_enum(test[0], test[1], None, []), test[4])
-            self.assertEqual(test[3], self.minimal_conf.gen_enum(test[0], test[1], None, []), test[4])
-
-    def test_list(self):
-        test_value_schema = jg.make_list(3, jg.make_atom(int, value=1))
-        test_unlimited_value_schema = jg.make_list(0, jg.make_atom(int, value=1))
-        test_value_fn_schema = jg.make_list(3, jg.make_atom(int, value=lambda elem, ctxt, lp: lp[-1] * lp[-2]))
-        test_default_schema = jg.make_list(3, jg.make_atom(int, 1))
-        test_unlimited_default_schema = jg.make_list(0, jg.make_atom(int, 1))
-        test_default_fn_schema = jg.make_list(3, jg.make_atom(int, lambda elem, ctxt, lp: lp[-1] * lp[-2]))
-
-        # Test list is wrong length
-        tests = [
-            # Test model is not a list, raises assertion
-            ["model not a list", 3, 'model_schema_mismatch'],
-            ["wrong length list", [1, 1, 1, 1], 'list_bad_length']
-        ]
-
-        for test in tests:
-            with self.assertRaises(jg.JsonGrammarException) as context:
-                self.complete_conf.gen_list(test[1], test_value_schema, [])
-            self.assertEqual(test[2], context.exception.args[0])
-            with self.assertRaises(jg.JsonGrammarException) as context:
-                self.minimal_conf.gen_list(test[1], test_value_schema, [])
-            self.assertEqual(test[2], context.exception.args[0])
-
-        # Test model is None
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list(None, test_value_schema, [2]))
-        self.assertEqual([1, 1, 1], self.minimal_conf.gen_list(None, test_value_schema, [2]))
-        self.assertEqual([], self.complete_conf.gen_list(None, test_unlimited_value_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(None, test_unlimited_value_schema, [2]))
-        self.assertEqual([0, 2, 4], self.complete_conf.gen_list(None, test_value_fn_schema, [2]))
-        self.assertEqual([0, 2, 4], self.minimal_conf.gen_list(None, test_value_fn_schema, [2]))
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list(None, test_default_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(None, test_default_schema, [2]))
-        self.assertEqual([], self.complete_conf.gen_list(None, test_unlimited_default_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(None, test_unlimited_default_schema, [2]))
-        self.assertEqual([0, 2, 4], self.complete_conf.gen_list(None, test_default_fn_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(None, test_default_fn_schema, [2]))
-
-        # Test model is model, but no need to test variable, handled by test_elem
-        test_obj = ObjectForTests()
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list(test_obj, test_value_schema, [2]))
-        self.assertEqual([1, 1, 1], self.minimal_conf.gen_list(test_obj, test_value_schema, [2]))
-        self.assertEqual([], self.complete_conf.gen_list(test_obj, test_unlimited_value_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(test_obj, test_unlimited_value_schema, [2]))
-        self.assertEqual([0, 2, 4], self.complete_conf.gen_list(test_obj, test_value_fn_schema, [2]))
-        self.assertEqual([0, 2, 4], self.minimal_conf.gen_list(test_obj, test_value_fn_schema, [2]))
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list(test_obj, test_default_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(test_obj, test_default_schema, [2]))
-        self.assertEqual([], self.complete_conf.gen_list(test_obj, test_unlimited_default_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(test_obj, test_unlimited_default_schema, [2]))
-        self.assertEqual([0, 2, 4], self.complete_conf.gen_list(test_obj, test_default_fn_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list(test_obj, test_default_fn_schema, [2]))
-
-        # Test model is list, and uses a function relying on list_pos, including nested list_pos
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list([1, 1, 1], test_value_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list([1, 1, 1], test_value_schema, [2]))
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list([1, 1, 1], test_unlimited_value_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list([1, 1, 1], test_unlimited_value_schema, [2]))
-        self.assertEqual([0, 2, 4], self.complete_conf.gen_list([0, 2, 4], test_value_fn_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list([0, 2, 4], test_value_fn_schema, [2]))
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list([1, 1, 1], test_default_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list([1, 1, 1], test_default_schema, [2]))
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_list([1, 1, 1], test_unlimited_default_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list([1, 1, 1], test_unlimited_default_schema, [2]))
-        self.assertEqual([0, 2, 4], self.complete_conf.gen_list([0, 2, 4], test_default_fn_schema, [2]))
-        self.assertIsNone(self.minimal_conf.gen_list([0, 2, 4], test_default_fn_schema, [2]))
-
-    def test_gen_list_minimal(self):
-        test_schema = jg.make_list(10, jg.make_atom(int, default=1))
-        # Test a full list
-        full_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-        full_list_res = full_list
-        result = self.minimal_conf.gen_list(full_list, test_schema, [])
-        self.assertEqual(result, full_list_res)
-        # Empty list
-        empty_list = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        result = self.minimal_conf.gen_list(empty_list, test_schema, [])
-        self.assertIsNone(result)
-        # List empty at beginning, one or two slots
-        begin1_list = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-        begin1_list_res = [None, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-        result = self.minimal_conf.gen_list(begin1_list, test_schema, [])
-        self.assertEqual(result, begin1_list_res)
-        begin2_list = [1, 1, 4, 5, 6, 7, 8, 9, 10, 11]
-        begin2_list_res = [None, None, 4, 5, 6, 7, 8, 9, 10, 11]
-        result = self.minimal_conf.gen_list(begin2_list, test_schema, [])
-        self.assertEqual(result, begin2_list_res)
-        # List empty at end, one or two slots
-        end1_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 1]
-        end1_list_res = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-        result = self.minimal_conf.gen_list(end1_list, test_schema, [])
-        self.assertEqual(result, end1_list_res)
-        end2_list = [2, 3, 4, 5, 6, 7, 8, 9, 1, 1]
-        end2_list_res = [2, 3, 4, 5, 6, 7, 8, 9]
-        result = self.minimal_conf.gen_list(end2_list, test_schema, [])
-        self.assertEqual(result, end2_list_res)
-        # List empty in middle, one or two slots
-        middle1_list = [2, 3, 4, 5, 1, 7, 8, 9, 10, 11]
-        middle1_list_res = [2, 3, 4, 5, None, 7, 8, 9, 10, 11]
-        result = self.minimal_conf.gen_list(middle1_list, test_schema, [])
-        self.assertEqual(result, middle1_list_res)
-        middle2_list = [2, 3, 4, 5, 1, 1, 8, 9, 10, 11]
-        middle2_list_res = [2, 3, 4, 5, None, None, 8, 9, 10, 11]
-        result = self.minimal_conf.gen_list(middle2_list, test_schema, [])
-        self.assertEqual(result, middle2_list_res)
-        # List empty at beginning, middle and end
-        complex_list = [1, 1, 4, 5, 1, 1, 8, 9, 1, 1]
-        complex_list_res = [None, None, 4, 5, None, None, 8, 9]
-        result = self.minimal_conf.gen_list(complex_list, test_schema, [])
-        self.assertEqual(result, complex_list_res)
-
-    def test_gen_dict(self):
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, value=1)),
-                                    jg.make_key('b', jg.make_atom(int, value=2)),
-                                    jg.make_key('c', jg.make_atom(int, value=3))])
+class JsonGrammarDictNodeGenTestCase(JsonGrammarBaseTestCase):
+    def test_gen_dict_value(self):
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom(int, value=2)),
+                               jg.Dict.make_key('c', jg.Atom(int, value=3))])
         test_result = {'a': 1, 'b': 2, 'c': 3}
-
-        # Test dict is not a dict, raises assertion
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_dict(3, test_schema, [])
-        self.assertEqual('type_not_dict', context.exception.args[0])
-
+        self.run_node_gen_error(test_schema, 3, 'type_not_dict')
         # Test dict is None
-        self.assertEqual(test_result, self.complete_conf.gen_dict(None, test_schema, []))
-
+        self.run_node_gen(test_schema, None, test_result, test_result)
         # Test dict is model, but no need to test variable, handled by test_elem
-        self.assertEqual(test_result, self.complete_conf.gen_dict(ObjectForTests(), test_schema, []))
-
+        self.run_node_gen(test_schema, ObjectForTests(), test_result, test_result)
         # Test dict is a dict, but too few keys
-        self.assertEqual(test_result, self.complete_conf.gen_dict({'a': 1, 'b': 2}, test_schema, []),)
-
+        self.run_node_gen(test_schema, {'a': 1, 'b': 2}, test_result, {'c': 3})
         # Test dict is a dict, right number of keys, but key name mismatch
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_dict({'a': 1, 'b': 2, 'd': 3}, test_schema, [])
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-
+        self.run_node_gen_error(test_schema, {'a': 1, 'b': 2, 'd': 3}, 'dict_bad_keys')
         # Test dict is a dict
-        self.assertEqual(test_result, self.complete_conf.gen_dict(test_result, test_schema, []))
+        self.run_node_gen(test_schema, test_result, test_result, None)
+
+    def test_gen_dict_default(self):
+        test_schema = jg.Dict('test',
+                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
+                               jg.Dict.make_key('b', jg.Atom(int, 1)),
+                               jg.Dict.make_key('c', jg.Atom(int, 1)),
+                               jg.Dict.make_key('d', jg.Atom(int, 1))])
+
+        # Test that None produces None
+        self.run_node_gen(test_schema, None, {'a': 1, 'b': 1, 'c': 1, 'd': 1}, None)
+
+        # Test that no keys appearing produced None
+        self.run_node_gen(test_schema, {}, {'a': 1, 'b': 1, 'c': 1, 'd': 1}, None)
+
+        # Test wrong key out of all
+        self.run_node_gen_error(test_schema, {'e': 1}, 'dict_bad_keys')
+
+        # Test one key out of all
+        self.run_node_gen(test_schema, {'a': 2}, {'a': 2, 'b': 1, 'c': 1, 'd': 1}, {'a': 2})
+        self.assertEqual({"a": 2}, test_schema.gen(minimal_conf, {'a': 2}, None, []))
+        # Test two keys out of all
+        self.run_node_gen(test_schema, {'a': 2, 'c': 3}, {'a': 2, 'b': 1, 'c': 3, 'd': 1}, {'a': 2, 'c': 3})
+        self.assertEqual({"a": 2, 'c': 3}, test_schema.gen(minimal_conf, {'a': 2, 'c': 3}, None, []))
+        # Test all keys out of all
+        self.run_node_gen(test_schema, {'a': 2, 'b': 4, 'c': 3, 'd': 5},
+                          {'a': 2, 'b': 4, 'c': 3, 'd': 5}, {'a': 2, 'b': 4, 'c': 3, 'd': 5})
+        self.assertEqual({"a": 2, 'b': 4, 'c': 3, 'd': 5},
+                         test_schema.gen(minimal_conf, {'a': 2, 'b': 4, 'c': 3, 'd': 5}, None, []))
 
     def test_gen_dict_context(self):
         # Test ordering of keys, they are added in order of appearance
-        # That is the firt two tests here
         # Test value function: None as model produces appropriate value
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, value=1)),
-                                    jg.make_key('b', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
-        self.assertEqual({'a': 1, 'b': 1}, self.complete_conf.gen_dict(None, test_schema, []))
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
+        self.run_node_gen(test_schema, None, {'a': 1, 'b': 1}, {'a': 1, 'b': 1})
 
         # Test value function: None as model, improper ordering fails
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['b'])),
-                                    jg.make_key('b', jg.make_atom(int, value=1))])
-        with self.assertRaises(KeyError) as context:
-            self.complete_conf.gen_dict(None, test_schema, [])
-        self.assertEqual('b', context.exception.args[0])
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['b'])),
+                               jg.Dict.make_key('b', jg.Atom(int, value=1))])
+        self.run_node_gen_error(test_schema, None, 'b', exception=KeyError)
 
         # Test default function:
         # None as model produces appropriate entry
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, default=1)),
-                                    jg.make_key('b', jg.make_atom(int, default=lambda elem, ctxt, lp: ctxt['a']))])
-        self.assertEqual({'a': 1, 'b': 1}, self.complete_conf.gen_dict(None, test_schema, []))
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, default=1)),
+                               jg.Dict.make_key('b', jg.Atom(int, default=lambda elem, ctxt, lp: ctxt['a']))])
+        self.run_node_gen(test_schema, None, {'a': 1, 'b': 1}, None)
 
         #  Non default as model produces appropriate entry
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, default=1)),
-                                    jg.make_key('b', jg.make_atom(int, default=lambda elem, ctxt, lp: ctxt['a']))])
-        self.assertEqual({'a': 2}, self.minimal_conf.gen_dict({'a': 2}, test_schema, []))
-        self.assertEqual({'b': 2}, self.minimal_conf.gen_dict({'b': 2}, test_schema, []))
+        test_schema = jg.Dict('foo',
+                              [jg.Dict.make_key('a', jg.Atom(int, default=1)),
+                               jg.Dict.make_key('b', jg.Atom(int, default=lambda elem, ctxt, lp: ctxt['a']))])
+        self.run_node_gen(test_schema, {'a': 2}, {'a': 2, 'b': 2}, {'a': 2})
+        self.run_node_gen(test_schema, {'b': 2}, {'a': 1, 'b': 2}, {'b': 2})
 
-    def test_gen_dict_minimal(self):
-        test_schema = jg.make_dict('test',
-                                   [jg.make_key('a', jg.make_atom(int, 1)),
-                                    jg.make_key('b', jg.make_atom(int, 1)),
-                                    jg.make_key('c', jg.make_atom(int, 1)),
-                                    jg.make_key('d', jg.make_atom(int, 1))])
 
-        # Test that None produces None
-        self.assertIsNone(self.minimal_conf.gen_dict(None, test_schema, []))
-
-        # Test that no keys appearing produced None
-        self.assertIsNone(self.minimal_conf.gen_dict({}, test_schema, []))
-
-        # Test wrong key out of all
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.gen_dict({'e': 1}, test_schema, [])
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-
-        # Test one key out of all
-        self.assertEqual({"a": 2}, self.minimal_conf.gen_dict({'a': 2}, test_schema, []))
-        # Test two keys out of all
-        self.assertEqual({"a": 2, 'c': 3}, self.minimal_conf.gen_dict({'a': 2, 'c': 3}, test_schema, []))
-        # Test all keys out of all
-        self.assertEqual({"a": 2, 'b': 4, 'c': 3, 'd': 5},
-                         self.minimal_conf.gen_dict({'a': 2, 'b': 4, 'c': 3, 'd': 5}, test_schema, []))
+class JsonGrammarSwitchDictNodeGenTestCase(JsonGrammarBaseTestCase):
 
     def test_gen_switch_dict(self):
-        test_case_keys = {'a': [jg.make_key('d', jg.make_atom(int, 1))],
-                          'b': [jg.make_key('e', jg.make_atom(int, 1))],
-                          'c': [jg.make_key('f', jg.make_atom(int, 1))]}
-        test_enum = jg.make_enum(["a", "b", "c"])
-        test_enum_default = jg.make_enum(["a", "b", "c"], "a")
-        test_switch_dict_schema = jg.make_switch_dict('test', jg.make_key('switch', test_enum_default), test_case_keys)
-        test_switch_dict_default_schema = jg.make_switch_dict('test', jg.make_key('switch', test_enum), test_case_keys)
+        test_case_keys = {'a': [jg.SwitchDict.make_key('d', jg.Atom(int, 1))],
+                          'b': [jg.SwitchDict.make_key('e', jg.Atom(int, 1))],
+                          'c': [jg.SwitchDict.make_key('f', jg.Atom(int, 1))]}
+        test_enum = jg.Enum(["a", "b", "c"], None)
+        test_enum_default = jg.Enum(["a", "b", "c"], "a")
+        test_switch_dict_schema = jg.SwitchDict('test',
+                                                jg.SwitchDict.make_key('switch', test_enum_default),
+                                                test_case_keys)
+        test_switch_dict_default_schema = jg.SwitchDict('test',
+                                                        jg.SwitchDict.make_key('switch', test_enum),
+                                                        test_case_keys)
 
         # Test switch dict model is None, enum has default
-        self.assertEqual({'switch': 'a', 'd': 1},
-                         self.complete_conf.gen_switch_dict(None, test_switch_dict_schema, []))
+        self.run_node_gen(test_switch_dict_schema, None, {'switch': 'a', 'd': 1}, None)
 
         # Test switch dict model is None, enum doesn't have default
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_switch_dict(None, test_switch_dict_default_schema, [])
-        self.assertEqual('enum_no_default', context.exception.args[0])
+        self.run_node_gen_error(test_switch_dict_default_schema, None, 'enum_no_default')
 
         # Test switch dict model is a model, no variable (that test handled by test_elem), enum has default
-        self.assertEqual({'switch': 'a', 'd': 1},
-                         self.complete_conf.gen_switch_dict(ObjectForTests(), test_switch_dict_schema, []))
+        self.run_node_gen(test_switch_dict_schema, ObjectForTests(), {'switch': 'a', 'd': 1}, None)
 
         # Test switch dict model is a model, no variable (that test handled by test_elem), enum has no default
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_switch_dict(ObjectForTests(), test_switch_dict_default_schema, [])
-        self.assertEqual('enum_no_default', context.exception.args[0])
+        self.run_node_gen_error(test_switch_dict_default_schema, ObjectForTests(), 'enum_no_default')
 
         # Test switch dict model is a dict, but wrong number of keys
-        test_model = {'switch': 'b', 'e': 1, 'f': 1}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_switch_dict(test_model, test_switch_dict_schema, [])
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.gen_switch_dict(test_model, test_switch_dict_schema, [])
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
+        self.run_node_gen_error(test_switch_dict_schema, {'switch': 'b', 'e': 1, 'f': 1}, 'dict_bad_keys')
 
         # Test switch dict model is a dict, right number of keys, but wrong keys
-        test_model = {'switch': 'b', 'd': 1}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_switch_dict(test_model, test_switch_dict_schema, [])
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.gen_switch_dict(test_model, test_switch_dict_schema, [])
-        self.assertEqual('dict_bad_keys', context.exception.args[0])
+        self.run_node_gen_error(test_switch_dict_schema, {'switch': 'b', 'd': 1}, 'dict_bad_keys')
 
         # Test switch dict has an invalid switch field
-        test_model = {'switch': 'd', 'd': 1}
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_switch_dict(test_model, test_switch_dict_schema, [])
-        self.assertEqual('switch_dict_bad_switch', context.exception.args[0])
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.minimal_conf.gen_switch_dict(test_model, test_switch_dict_schema, [])
-        self.assertEqual('switch_dict_bad_switch', context.exception.args[0])
+        self.run_node_gen_error(test_switch_dict_schema, {'switch': 'd', 'd': 1}, 'switch_dict_bad_switch')
 
         # Test switch dict has a valid switch field
-        test_model = {'switch': 'a', 'd': 1}
-        self.assertEqual({'switch': 'a', 'd': 1},
-                         self.complete_conf.gen_switch_dict(test_model, test_switch_dict_schema, []))
+        self.run_node_gen(test_switch_dict_schema, {'switch': 'a', 'd': 1}, {'switch': 'a', 'd': 1}, None)
+
+        # Test switch dict has a valid switch field
+        self.run_node_gen(test_switch_dict_schema, {'switch': 'b', 'e': 2},
+                          {'switch': 'b', 'e': 2}, {'switch': 'b', 'e': 2})
 
     def test_switch_dict_context(self):
         # Functions cannot appear as switch
@@ -1238,105 +816,248 @@ class JsonGeneratorTestCase(unittest.TestCase):
         #  None as model produces appropriate entry
         #  Non default as model produces appropriate entry
         # Must test ordering where keys added to context
-        test_switch_key = jg.make_key('switch', jg.make_enum(["a", "b"], "a"))
-        test_case_keys = {'a': [jg.make_key('a1', jg.make_atom(int, value=1)),
-                                jg.make_key('a2', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['a1']))],
-                          'b': [jg.make_key('b1', jg.make_atom(int, value=1)),
-                                jg.make_key('b2', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
-        test_schema = jg.make_switch_dict('test', test_switch_key, test_case_keys)
+        test_switch_key = jg.SwitchDict.make_key('switch', jg.Enum(["a", "b"], "a"))
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a1']))],
+                          'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, value=1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
+        test_schema = jg.SwitchDict('test', test_switch_key, test_case_keys)
         # Test value function: None as model produces appropriate value
-        self.assertEqual({'switch': 'a', 'a1': 1, 'a2': 1},
-                         self.complete_conf.gen_switch_dict(None, test_schema, []))
-        self.assertEqual({'a1': 1, 'a2': 1},
-                         self.minimal_conf.gen_switch_dict(None, test_schema, []))
+        self.run_node_gen(test_schema, None, {'switch': 'a', 'a1': 1, 'a2': 1}, {'a1': 1, 'a2': 1})
 
         # Test value function: None as model, improper ordering fails
-        test_case_keys = {'a': [jg.make_key('a1',
-                                            jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['a2'])),
-                                jg.make_key('a2', jg.make_atom(int, value=1))],
-                          'b': [jg.make_key('b1', jg.make_atom(int, value=1)),
-                                jg.make_key('b2', jg.make_atom(int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
-        test_schema = jg.make_switch_dict('test', test_switch_key, test_case_keys)
-        with self.assertRaises(KeyError) as context:
-            self.complete_conf.gen_switch_dict(None, test_schema, [])
-        self.assertEqual('a2', context.exception.args[0])
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1',
+                                                       jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a2'])),
+                                jg.SwitchDict.make_key('a2', jg.Atom(int, value=1))],
+                          'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, value=1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
+        test_schema = jg.SwitchDict('test', test_switch_key, test_case_keys)
+        self.run_node_gen_error(test_schema, None, 'a2', exception=KeyError)
 
         # Test default function:
         #  None as model produces appropriate entry
-        test_case_keys = {'a': [jg.make_key('a1', jg.make_atom(int, 1)),
-                                jg.make_key('a2', jg.make_atom(int, lambda elem, ctxt, lp: ctxt['a1']))],
-                          'b': [jg.make_key('b1', jg.make_atom(int, 1)),
-                                jg.make_key('b2', jg.make_atom(int, lambda elem, ctxt, lp: ctxt['b1']))]}
-        test_schema = jg.make_switch_dict('test', test_switch_key, test_case_keys)
-        self.assertEqual({'switch': 'a', 'a1': 1, 'a2': 1},
-                         self.complete_conf.gen_switch_dict(None, test_schema, []))
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom(int, lambda elem, ctxt, lp: ctxt['a1']))],
+                          'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom(int, lambda elem, ctxt, lp: ctxt['b1']))]}
+        test_schema = jg.SwitchDict('test', test_switch_key, test_case_keys)
+        self.run_node_gen(test_schema, None, {'switch': 'a', 'a1': 1, 'a2': 1}, None)
 
         #  Non default as model produces appropriate entry
-        self.assertEqual({'switch': 'a', 'a1': 2, 'a2': 2},
-                         self.complete_conf.gen_switch_dict({'switch': 'a', 'a1': 2}, test_schema, []))
-        self.assertEqual({'switch': 'a', 'a1': 2, 'a2': 4},
-                         self.complete_conf.gen_switch_dict({'switch': 'a', 'a1': 2, 'a2': 4}, test_schema, []))
-        self.assertEqual({'switch': 'b', 'b1': 2, 'b2': 2},
-                         self.complete_conf.gen_switch_dict({'switch': 'b', 'b1': 2}, test_schema, []))
-        self.assertEqual({'switch': 'b', 'b1': 2, 'b2': 4},
-                         self.complete_conf.gen_switch_dict({'switch': 'b', 'b1': 2, 'b2': 4}, test_schema, []))
-        self.assertEqual({'switch': 'b', 'b1': 2, 'b2': 4},
-                         self.minimal_conf.gen_switch_dict({'switch': 'b', 'b1': 2, 'b2': 4}, test_schema, []))
-
-    def test_switch_dict_minimal(self):
-        test_switch_key = jg.make_key('switch', jg.make_enum(["a", "b", "c"], "a"))
-        test_schema = jg.make_switch_dict('test', test_switch_key,
-                                          {'a': [jg.make_key('d', jg.make_atom(int, 1))],
-                                           'b': [jg.make_key('e', jg.make_atom(int, 1))],
-                                           'c': [jg.make_key('f', jg.make_atom(int, 1))]})
-
-        # Test switch dict model is None,
-        self.assertIsNone(self.minimal_conf.gen_switch_dict(None, test_schema, []))
-
-        # Test switch dict is a model, no variable (that test handled by test_elem), and enum is default
-        # There is no non-default case here?
-        self.assertIsNone(self.minimal_conf.gen_switch_dict(ObjectForTests(), test_schema, []))
-
-        # Test switch dict has a valid switch field
-        test_model = {'switch': 'b', 'e': 2}
-        self.assertEqual({'switch': 'b', 'e': 2}, self.minimal_conf.gen_switch_dict(test_model, test_schema, []))
+        self.run_node_gen(test_schema, {'switch': 'a', 'a1': 2},
+                          {'switch': 'a', 'a1': 2, 'a2': 2}, {'a1': 2})
+        self.run_node_gen(test_schema, {'switch': 'a', 'a1': 2, 'a2': 4},
+                          {'switch': 'a', 'a1': 2, 'a2': 4}, {'a1': 2, 'a2': 4})
+        self.run_node_gen(test_schema, {'switch': 'b', 'b1': 2},
+                          {'switch': 'b', 'b1': 2, 'b2': 2}, {'switch': 'b', 'b1': 2})
+        self.run_node_gen(test_schema, {'switch': 'b', 'b1': 2, 'b2': 4},
+                          {'switch': 'b', 'b1': 2, 'b2': 4}, {'switch': 'b', 'b1': 2, 'b2': 4})
+        self.run_node_gen(test_schema, {'switch': 'b', 'b1': 2, 'b2': 4},
+                          {'switch': 'b', 'b1': 2, 'b2': 4}, {'switch': 'b', 'b1': 2, 'b2': 4})
 
     def test_gen_switch_dict_common_keys(self):
         test_switch = make_common_switch()
-        full_result = {'switch': 'a', 'a1': 1, 'a2': 2, 'c1': 1, 'c2': 2}
-        self.assertEqual(self.complete_conf.gen_switch_dict(None, test_switch, []), full_result)
-        self.assertIsNone(self.minimal_conf.gen_switch_dict(None, test_switch, []))
+        self.run_node_gen(test_switch, None, {'switch': 'a', 'a1': 1, 'a2': 2, 'c1': 1, 'c2': 2}, None)
 
-    def test_elem(self):
-        # Test schema is None
-        with self.assertRaises(jg.JsonGrammarException) as context:
-            self.complete_conf.gen_elem(1, None, None, [])
-        self.assertEqual('no_schema', context.exception.args[0])
 
-        # Test dictionary
-        test_schema = jg.make_dict('foo',
-                                   [jg.make_key('a', jg.make_atom(int, value=1)),
-                                    jg.make_key('b', jg.make_atom(int, value=2)),
-                                    jg.make_key('c', jg.make_atom(int, value=3))])
-        test_result = {'a': 1, 'b': 2, 'c': 3}
-        self.assertEqual(test_result, self.complete_conf.gen_elem(test_result, test_schema, None, []))
+class JsonGrammarListNodeGenTestCase(JsonGrammarBaseTestCase):
+    def test_list(self):
+        test_value_schema = jg.List(3, jg.Atom(int, value=1))
+        test_unlimited_value_schema = jg.List(0, jg.Atom(int, value=1))
+        test_value_fn_schema = jg.List(3, jg.Atom(int, value=lambda elem, ctxt, lp: lp[-1] * lp[-2]))
+        test_default_schema = jg.List(3, jg.Atom(int, 1))
+        test_unlimited_default_schema = jg.List(0, jg.Atom(int, 1))
+        test_default_fn_schema = jg.List(3, jg.Atom(int, lambda elem, ctxt, lp: lp[-1] * lp[-2]))
 
-        # Test list
-        test_schema = jg.make_list(3, jg.make_atom(int, value=1))
-        self.assertEqual([1, 1, 1], self.complete_conf.gen_elem(None, test_schema, None, [2]))
+        # Test list is wrong length
+        self.run_node_gen_error(test_value_schema, 3, 'model_schema_mismatch')
+        self.run_node_gen_error(test_value_schema, [1, 1, 1, 1], 'list_bad_length')
 
-        # Test atom
-        test_schema = jg.make_atom(int, value=1)
-        self.assertEqual(1, self.complete_conf.gen_elem(1, test_schema, None, []))
+        # Test model is None
+        self.run_node_gen(test_value_schema, None, [1, 1, 1], [1, 1, 1])
+        self.run_node_gen(test_unlimited_value_schema, None, [], None)
+        self.run_node_gen(test_value_fn_schema, None, [0, 2, 4], [0, 2, 4], list_pos=[2])
+        self.run_node_gen(test_default_schema, None, [1, 1, 1], None)
+        self.run_node_gen(test_unlimited_default_schema, None, [], None)
+        self.run_node_gen(test_default_fn_schema, None, [0, 2, 4], None, list_pos=[2])
 
-        # Test variable expansion
+        # Test model is model, but no need to test variable, handled by test_elem
+        test_obj = ObjectForTests()
+        self.run_node_gen(test_value_schema, test_obj, [1, 1, 1], [1, 1, 1])
+        self.run_node_gen(test_unlimited_value_schema, test_obj, [], None)
+        self.run_node_gen(test_value_fn_schema, test_obj, [0, 2, 4], [0, 2, 4], list_pos=[2])
+        self.run_node_gen(test_default_schema, test_obj, [1, 1, 1], None)
+        self.run_node_gen(test_unlimited_default_schema, test_obj, [], None)
+        self.run_node_gen(test_default_fn_schema, test_obj, [0, 2, 4], None, list_pos=[2])
+
+        # Test model is list, and uses a function relying on list_pos, including nested list_pos
+        self.run_node_gen(test_value_schema, [1, 1, 1], [1, 1, 1], None)
+        self.run_node_gen(test_unlimited_value_schema, [1, 1, 1], [1, 1, 1], None)
+        self.run_node_gen(test_value_fn_schema, [0, 2, 4], [0, 2, 4], None, list_pos=[2])
+        self.run_node_gen(test_default_schema, [1, 1, 1], [1, 1, 1], None)
+        self.run_node_gen(test_unlimited_default_schema, [1, 1, 1], [1, 1, 1], None)
+        self.run_node_gen(test_default_fn_schema, [0, 2, 4], [0, 2, 4], None, list_pos=[2])
+
+    def test_gen_list_minimal(self):
+        test_schema = jg.List(10, jg.Atom(int, default=1))
+        # Test a full list
+        self.run_node_gen(test_schema, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                          [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        # Empty list
+        self.run_node_gen(test_schema, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                          [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], None)
+        # List empty at beginning, one or two slots
+        self.run_node_gen(test_schema, [1, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                          [1, 3, 4, 5, 6, 7, 8, 9, 10, 11], [None, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        self.run_node_gen(test_schema, [1, 1, 4, 5, 6, 7, 8, 9, 10, 11],
+                          [1, 1, 4, 5, 6, 7, 8, 9, 10, 11], [None, None, 4, 5, 6, 7, 8, 9, 10, 11])
+        # List empty at end, one or two slots
+        self.run_node_gen(test_schema, [2, 3, 4, 5, 6, 7, 8, 9, 10, 1],
+                          [2, 3, 4, 5, 6, 7, 8, 9, 10, 1], [2, 3, 4, 5, 6, 7, 8, 9, 10])
+        self.run_node_gen(test_schema, [2, 3, 4, 5, 6, 7, 8, 9, 1, 1],
+                          [2, 3, 4, 5, 6, 7, 8, 9, 1, 1], [2, 3, 4, 5, 6, 7, 8, 9])
+        # List empty in middle, one or two slots
+        self.run_node_gen(test_schema, [2, 3, 4, 5, 1, 7, 8, 9, 10, 11],
+                          [2, 3, 4, 5, 1, 7, 8, 9, 10, 11], [2, 3, 4, 5, None, 7, 8, 9, 10, 11])
+        self.run_node_gen(test_schema, [2, 3, 4, 5, 1, 1, 8, 9, 10, 11],
+                          [2, 3, 4, 5, 1, 1, 8, 9, 10, 11], [2, 3, 4, 5, None, None, 8, 9, 10, 11])
+        # List empty at beginning, middle and end
+        self.run_node_gen(test_schema, [1, 1, 4, 5, 1, 1, 8, 9, 1, 1],
+                          [1, 1, 4, 5, 1, 1, 8, 9, 1, 1], [None, None, 4, 5, None, None, 8, 9])
+
+
+class JsonGrammarEnumNodeGenTestCase(JsonGrammarBaseTestCase):
+    def test_enum(self):
+        test_enum = jg.Enum(["one", "two", "three", "four"], None)
+        test_default_enum = jg.Enum(["one", "two", "three", "four"], default="one")
+
+        # Enum, empty model with no enum default value
+        self.run_node_gen_error(test_enum, None, 'enum_no_default')
+
+        # Enum with default value, empty model
+        self.run_node_gen(test_default_enum, None, "one", None)
+
+        # Enum w/ default value, model is value
+        self.run_node_gen(test_enum, "one", "one", "one")
+        self.run_node_gen(test_default_enum, "one", "one", None)
+        self.run_node_gen(test_enum, "two", "two", "two")
+        self.run_node_gen(test_default_enum, "two", "two", "two")
+
         test_model = ObjectForTests()
-        test_model.x = 3
-        test_schema = jg.make_atom(int, 1, var='x')
-        self.assertEqual(3, self.complete_conf.gen_elem(test_model, test_schema, None, []), 3)
+        self.run_node_gen(test_default_enum, test_model, "one", None)
 
 
-class IntuitiveTestCases(unittest.TestCase):
+class JsonGrammarAtomNodeGenTestCase(JsonGrammarBaseTestCase):
+    def test_atom(self):
+        # Value Atom, int, int from a function, string and bool
+        value_int_atom = jg.Atom(int, value=1)
+        value_int_fn_atom = jg.Atom(int, value=lambda elem, ctxt, lp: 1)
+        value_str_atom = jg.Atom(str, value="a")
+        value_bool_atom = jg.Atom(bool, value=True)
+
+        default_int_atom = jg.Atom(int, 1)
+        default_int_fn_atom = jg.Atom(int, lambda elem, ctxt, lp: 1)
+        default_str_atom = jg.Atom(str, "a")
+        default_bool_atom = jg.Atom(bool, True)
+
+        # Val atom w/ incorrect value
+        self.run_node_gen_error(value_int_atom, 2, 'model_schema_mismatch')
+        self.run_node_gen_error(value_int_fn_atom, 2, 'model_schema_mismatch')
+        self.run_node_gen_error(value_str_atom, 'b', 'model_schema_mismatch')
+        self.run_node_gen_error(value_bool_atom, False, 'model_schema_mismatch')
+
+        # Val atom w/ correct value
+        self.run_node_gen(value_int_atom, 1, 1, None)
+        self.run_node_gen(value_int_fn_atom, 1, 1, None)
+        self.run_node_gen(value_str_atom, 'a', 'a', None)
+        self.run_node_gen(value_bool_atom, True, True, None)
+
+        # Val atom w/ None,
+        self.run_node_gen(value_int_atom, None, 1, 1)
+        self.run_node_gen(value_int_fn_atom, None, 1, 1)
+        self.run_node_gen(value_str_atom, None, 'a', 'a')
+        self.run_node_gen(value_bool_atom, None, True, True)
+
+        # Val atom with model value
+        test_model = ObjectForTests()
+        self.run_node_gen(value_int_atom, test_model, 1, 1)
+        self.run_node_gen(value_int_fn_atom, test_model, 1, 1)
+        self.run_node_gen(value_str_atom, test_model, 'a', 'a')
+        self.run_node_gen(value_bool_atom, test_model, True, True)
+
+        # Default atom w/ default value
+        self.run_node_gen(default_int_atom, 1, 1, None)
+        self.run_node_gen(default_int_fn_atom, 1, 1, None)
+        self.run_node_gen(default_str_atom, 'a', 'a', None)
+        self.run_node_gen(default_bool_atom, True, True, None)
+
+        # Default atom w/ None,
+        self.run_node_gen(default_int_atom, None, 1, None)
+        self.run_node_gen(default_int_fn_atom, None, 1, None)
+        self.run_node_gen(default_str_atom, None, 'a', None)
+        self.run_node_gen(default_bool_atom, None, True, None)
+
+        # Default atom w/ non-default value
+        self.run_node_gen(default_int_atom, 2, 2, 2)
+        self.run_node_gen(default_int_fn_atom, 2, 2, 2)
+        self.run_node_gen(default_str_atom, 'b', 'b', 'b')
+        self.run_node_gen(default_bool_atom, False, False, False)
+
+        # Default atom w/ Model,
+        self.run_node_gen(default_int_atom, test_model, 1, None)
+        self.run_node_gen(default_int_fn_atom, test_model, 1, None)
+        self.run_node_gen(default_str_atom, test_model, 'a', None)
+        self.run_node_gen(default_bool_atom, test_model, True, None)
+
+
+class IntuitiveMessageCatalogTestCase(unittest.TestCase):
+    def test_init(self):
+        message1 = MC6Pro_intuitive.IntuitiveMessage.make_bank_jump_message('one', 2, 1, None)
+        message2 = MC6Pro_intuitive.IntuitiveMessage.make_bank_jump_message('two', 1, 2, None)
+        messages = [message1, message2]
+
+        catalog = MC6Pro_intuitive.MessageCatalog(messages)
+        self.assertEqual(len(catalog.catalog), 2)
+        self.assertEqual(catalog.lookup('one'), message1)
+        self.assertEqual(catalog.lookup('two'), message2)
+
+    def test_add(self):
+        catalog = MC6Pro_intuitive.MessageCatalog()
+        message = MC6Pro_intuitive.IntuitiveMessage.make_bank_jump_message('one', 2, 1, catalog)
+        self.assertEqual('one', message)
+        message = catalog.lookup('one')
+        message.name = 'two'
+        self.assertEqual(catalog.add(message), 'one')
+
+
+class IntuitiveColorsCatalogTestCase(unittest.TestCase):
+    def test_init(self):
+        colors1 = MC6Pro_intuitive.ColorSchema.make_preset_schema('black', 'lime',
+                                                                  'blue', 'orchid',
+                                                                  'yellow', 'gray',
+                                                                  name='One')
+        colors2 = MC6Pro_intuitive.ColorSchema.make_preset_schema('orange', 'red',
+                                                                  'skyblue', 'olivedrab',
+                                                                  'deeppink', 'mediumslateblue',
+                                                                  name='Two')
+        colors = [colors1, colors2]
+        catalog = MC6Pro_intuitive.ColorsCatalog(colors)
+        self.assertEqual(len(catalog.catalog), 2)
+        self.assertEqual(catalog.lookup('One'), colors1)
+        self.assertEqual(catalog.lookup('Two'), colors2)
+
+    def test_add(self):
+        catalog = MC6Pro_intuitive.ColorsCatalog()
+        colors1 = MC6Pro_intuitive.ColorSchema.make_preset_schema('black', 'lime',
+                                                                  'blue', 'orchid',
+                                                                  'yellow', 'gray',
+                                                                  name='One')
+        self.assertEqual(catalog.add(colors1), 'One')
+        colors1.name = 'Two'
+        self.assertEqual(catalog.add(colors1), 'One')
+
+
+class IntuitiveColorSchemaTestCase(unittest.TestCase):
     def test_colors_schema(self):
         self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_bank_color(None), "default")
         self.assertEqual(MC6Pro_intuitive.ColorSchema.from_base_bank_color(127), "default")
@@ -1353,6 +1074,203 @@ class IntuitiveTestCases(unittest.TestCase):
         self.assertEqual(MC6Pro_intuitive.ColorSchema.to_base_preset_color("yellow", True), 4)
         self.assertEqual(MC6Pro_intuitive.ColorSchema.to_base_preset_color("yellow", False), 4)
 
+
+class MC6ProColorsInheritanceTestCase(unittest.TestCase):
+    def check_bank(self, bank, foreground_color, background_color):
+        if foreground_color is None:
+            self.assertIsNone(bank.text_color)
+        else:
+            self.assertEqual(bank.text_color, MC6Pro_intuitive.preset_colors.index(foreground_color))
+        if background_color is None:
+            self.assertIsNone(bank.background_color)
+        else:
+            self.assertEqual(bank.background_color, MC6Pro_intuitive.preset_colors.index(background_color))
+
+    def check_preset(self, preset, preset_color, preset_toggle_color, preset_background_color,
+                     preset_toggle_background_color):
+        if preset_color is None:
+            self.assertIsNone(preset.name_color)
+        else:
+            self.assertEqual(preset.name_color, MC6Pro_intuitive.preset_colors.index(preset_color))
+        if preset_toggle_color is None:
+            self.assertIsNone(preset.name_toggle_color)
+        else:
+            self.assertEqual(preset.name_toggle_color, MC6Pro_intuitive.preset_colors.index(preset_toggle_color))
+        if preset_background_color is None:
+            self.assertIsNone(preset.background_color)
+        else:
+            self.assertEqual(preset.background_color, MC6Pro_intuitive.preset_colors.index(preset_background_color))
+        if preset_toggle_background_color is None:
+            self.assertIsNone(preset.background_toggle_color)
+        else:
+            self.assertEqual(preset.background_toggle_color,
+                             MC6Pro_intuitive.preset_colors.index(preset_toggle_background_color))
+
+    def test_inheritance1(self):
+        # Navigator schema:
+        #   Bank: steelblue/lightsteelblue
+        #   Preset: tan/cornsilk
+        #   Preset Toggle: brown/maroon
+        # Default schema:
+        #   Bank: orange/red
+        #   Preset: skyblue/olivedrab
+        #   Preset Toggle: deeppink/mediumslateblue
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest1.yaml')
+        intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, "steelblue", "lightsteelblue")
+        self.check_preset(navigator_bank.presets[0], "tan", "brown",
+                          "cornsilk", "maroon")
+        self.check_preset(navigator_bank.presets[1], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, "orange", "red")
+        self.check_preset(bank_one.presets[0], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+
+    def test_inheritance2(self):
+        # Navigator schema:
+        #   Bank: steelblue/lightsteelblue
+        #   Preset: tan/cornsilk
+        #   Preset Toggle: brown/maroon
+        # Default schema:
+        #   Bank: None/None
+        #   Preset: None/None
+        #   Preset Toggle: None/NOne
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest2.yaml')
+        intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, "steelblue", "lightsteelblue")
+        self.check_preset(navigator_bank.presets[0], "tan", "brown",
+                          "cornsilk", "maroon")
+        self.check_preset(navigator_bank.presets[1], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, None, None)
+        self.check_preset(bank_one.presets[0], None, None,
+                          None, None)
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "tan", "brown",
+                          "cornsilk", "maroon")
+
+    def test_inheritance3(self):
+        # Navigator schema: same as default
+        # Default schema:
+        #   Bank: orange/red
+        #   Preset: skyblue/olivedrab
+        #   Preset Toggle: deeppink/mediumslateblue
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest3.yaml')
+        intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, "orange", "red")
+        self.check_preset(navigator_bank.presets[0], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        self.check_preset(navigator_bank.presets[1], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, "orange", "red")
+        self.check_preset(bank_one.presets[0], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "skyblue", "deeppink",
+                          "olivedrab", "mediumslateblue")
+
+    def test_inheritance4(self):
+        # Navigator schema: None
+        # Default schema: None
+        # Bank 2 schema:
+        #   Bank: blueviolet/thistle
+        #   Preset: darkseagreen/olive
+        #   Preset Toggle: forestgreen/indigo
+        # Preset 2 schema:
+        #   Preset: khaki/lightyellow
+        #   Preset Toggle: darkkhaki/lightsalmon
+        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
+        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest4.yaml')
+        intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
+        base_model = intuitive_model.to_base()
+        navigator_bank = base_model.banks[0]
+        self.check_bank(navigator_bank, None, None)
+        self.check_preset(navigator_bank.presets[0], None, None,
+                          None, None)
+        self.check_preset(navigator_bank.presets[1], None, None,
+                          None, None)
+        bank_one = base_model.banks[1]
+        self.check_bank(bank_one, None, None)
+        self.check_preset(bank_one.presets[0], None, None,
+                          None, None)
+        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_one.presets[2], None, None,
+                          None, None)
+        bank_two = base_model.banks[2]
+        self.check_bank(bank_two, "blueviolet", "thistle")
+        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
+                          "lightyellow", "lightsalmon")
+        self.check_preset(bank_two.presets[2], "darkseagreen", "forestgreen",
+                          "olive", "indigo")
+
+
+class IntuitiveMidiMessageTestCase(unittest.TestCase):
     def test_IntuitiveMidiMessage_eq(self):
         msg1 = MC6Pro_intuitive.IntuitiveMessage()
         msg2 = MC6Pro_intuitive.IntuitiveMessage()
@@ -1459,7 +1377,6 @@ class IntuitiveFromBaseTestCase(unittest.TestCase):
         return message
 
     def test_intuitive_midi_message(self):
-
         # Test adding the first MIDI message
         base_message = self.mk_base_method(None, 1, [None, None])
         message = MC6Pro_intuitive.IntuitiveMessage()
@@ -1609,6 +1526,17 @@ class IntuitiveToBaseTestCase(unittest.TestCase):
         self.assertEqual(True, True)
 
 
+class IntuitiveVersionTestCase(unittest.TestCase):
+    def test_version(self):
+        current_version = MC6Pro_intuitive.intuitive_version
+        self.assertEqual(MC6Pro_intuitive.version_verify(current_version, None, []), current_version)
+
+        # This should be done with bumps, once we reach a major version
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            MC6Pro_intuitive.version_verify("0.2.1", None, [])
+        self.assertEqual('bad_version', context.exception.args[0])
+
+
 class MC6ProIntuitiveTestCase(unittest.TestCase):
 
     # Recursive json comparator, allows skipping certain keys
@@ -1651,7 +1579,7 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         new_base_config_filename = "tmp/" + filename + ".json"
         base_grammar = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
         base_file = jg.JsonGrammarFile(filename=orig_base_config_filename)
-        orig_base_model = base_grammar.parse(base_file.load())
+        orig_base_model = base_grammar.parse_config(base_file.load())
         self.assertEqual(orig_base_model.modified, True)
 
         # Convert the config model into an intuitive model
@@ -1661,12 +1589,12 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         # Save the intuitive model to a file
         int_grammar = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, True)
         int_file = jg.JsonGrammarFile(filename=intuitive_config_filename)
-        int_file.save(int_grammar.gen(orig_int_model))
+        int_file.save(int_grammar.gen_config(orig_int_model))
 
         # Load the intuitive string back to a model
         reloaded_int_grammar = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, True)
         reloaded_int_file = jg.JsonGrammarFile(intuitive_config_filename)
-        reloaded_int_model = reloaded_int_grammar.parse(reloaded_int_file.load())
+        reloaded_int_model = reloaded_int_grammar.parse_config(reloaded_int_file.load())
 
         # Compare the reloaded model
         if reloaded_int_model is None:
@@ -1682,12 +1610,12 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         # Save a new config file
         reloaded_base_file_grammar = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
         reloaded_base_file = jg.JsonGrammarFile(filename=new_base_config_filename)
-        reloaded_base_file.save(reloaded_base_file_grammar.gen(reloaded_base_model))
+        reloaded_base_file.save(reloaded_base_file_grammar.gen_config(reloaded_base_model))
 
         # Load the new config file
         rereloaded_base_grammar = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
         rereloaded_base_file = jg.JsonGrammarFile(filename=new_base_config_filename)
-        rereloaded_base_model = rereloaded_base_grammar.parse(rereloaded_base_file.load())
+        rereloaded_base_model = rereloaded_base_grammar.parse_config(rereloaded_base_file.load())
         self.assertEqual(rereloaded_base_model, orig_base_model)
 
         # Make sure the raw json is the same
@@ -1725,10 +1653,10 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         base_file = jg.JsonGrammarFile('tmp/Demo.json')
         intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
         intuitive_file = jg.JsonGrammarFile('Configs/Demo.yaml')
-        intuitive_model = intuitive_conf.parse(intuitive_file.load())
+        intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
         base_model = intuitive_model.to_base()
         self.assertIsNotNone(base_model)
-        base_file.save(base_conf.gen(base_model))
+        base_file.save(base_conf.gen_config(base_model))
 
 
 class MC6ProNavigatorTestCase(unittest.TestCase):
@@ -1948,7 +1876,7 @@ class MC6ProNavigatorTestCase(unittest.TestCase):
     def test_navigator(self):
         intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
         intuitive_file = jg.JsonGrammarFile(filename='Configs/NavigatorTest.json')
-        intuitive_model = intuitive_conf.parse(intuitive_file.load())
+        intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
         base_model = intuitive_model.to_base()
         self.assertIsNotNone(base_model)
         for pos, bank in enumerate(base_model.banks):
@@ -1958,206 +1886,9 @@ class MC6ProNavigatorTestCase(unittest.TestCase):
                     if pos2 < len(self.navigator_banks[pos][1]):
                         self.assertEqual(preset.short_name, self.navigator_banks[pos][1][pos2])
                     else:
-                        if preset is not None:
-                            x = 1
                         self.assertIsNone(preset)
             else:
                 self.assertIsNone(bank)
-
-
-class MC6ProColorsInheritanceTestCase(unittest.TestCase):
-    def check_bank(self, bank, foreground_color, background_color):
-        if foreground_color is None:
-            self.assertIsNone(bank.text_color)
-        else:
-            self.assertEqual(bank.text_color, MC6Pro_intuitive.preset_colors.index(foreground_color))
-        if background_color is None:
-            self.assertIsNone(bank.background_color)
-        else:
-            self.assertEqual(bank.background_color, MC6Pro_intuitive.preset_colors.index(background_color))
-
-    def check_preset(self, preset, preset_color, preset_toggle_color, preset_background_color,
-                     preset_toggle_background_color):
-        if preset_color is None:
-            self.assertIsNone(preset.name_color)
-        else:
-            self.assertEqual(preset.name_color, MC6Pro_intuitive.preset_colors.index(preset_color))
-        if preset_toggle_color is None:
-            self.assertIsNone(preset.name_toggle_color)
-        else:
-            self.assertEqual(preset.name_toggle_color, MC6Pro_intuitive.preset_colors.index(preset_toggle_color))
-        if preset_background_color is None:
-            self.assertIsNone(preset.background_color)
-        else:
-            self.assertEqual(preset.background_color, MC6Pro_intuitive.preset_colors.index(preset_background_color))
-        if preset_toggle_background_color is None:
-            self.assertIsNone(preset.background_toggle_color)
-        else:
-            self.assertEqual(preset.background_toggle_color,
-                             MC6Pro_intuitive.preset_colors.index(preset_toggle_background_color))
-
-    def test_inheritance1(self):
-        # Navigator schema:
-        #   Bank: steelblue/lightsteelblue
-        #   Preset: tan/cornsilk
-        #   Preset Toggle: brown/maroon
-        # Default schema:
-        #   Bank: orange/red
-        #   Preset: skyblue/olivedrab
-        #   Preset Toggle: deeppink/mediumslateblue
-        # Bank 2 schema:
-        #   Bank: blueviolet/thistle
-        #   Preset: darkseagreen/olive
-        #   Preset Toggle: forestgreen/indigo
-        # Preset 2 schema:
-        #   Preset: khaki/lightyellow
-        #   Preset Toggle: darkkhaki/lightsalmon
-        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
-        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest1.yaml')
-        intuitive_model = intuitive_conf.parse(intuitive_file.load())
-        base_model = intuitive_model.to_base()
-        navigator_bank = base_model.banks[0]
-        self.check_bank(navigator_bank, "steelblue", "lightsteelblue")
-        self.check_preset(navigator_bank.presets[0], "tan", "brown",
-                          "cornsilk", "maroon")
-        self.check_preset(navigator_bank.presets[1], "tan", "brown",
-                          "cornsilk", "maroon")
-        bank_one = base_model.banks[1]
-        self.check_bank(bank_one, "orange", "red")
-        self.check_preset(bank_one.presets[0], "skyblue", "deeppink",
-                          "olivedrab", "mediumslateblue")
-        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_one.presets[2], "tan", "brown",
-                          "cornsilk", "maroon")
-        bank_two = base_model.banks[2]
-        self.check_bank(bank_two, "blueviolet", "thistle")
-        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
-                          "olive", "indigo")
-        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_two.presets[2], "tan", "brown",
-                          "cornsilk", "maroon")
-
-    def test_inheritance2(self):
-        # Navigator schema:
-        #   Bank: steelblue/lightsteelblue
-        #   Preset: tan/cornsilk
-        #   Preset Toggle: brown/maroon
-        # Default schema:
-        #   Bank: None/None
-        #   Preset: None/None
-        #   Preset Toggle: None/NOne
-        # Bank 2 schema:
-        #   Bank: blueviolet/thistle
-        #   Preset: darkseagreen/olive
-        #   Preset Toggle: forestgreen/indigo
-        # Preset 2 schema:
-        #   Preset: khaki/lightyellow
-        #   Preset Toggle: darkkhaki/lightsalmon
-        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
-        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest2.yaml')
-        intuitive_model = intuitive_conf.parse(intuitive_file.load())
-        base_model = intuitive_model.to_base()
-        navigator_bank = base_model.banks[0]
-        self.check_bank(navigator_bank, "steelblue", "lightsteelblue")
-        self.check_preset(navigator_bank.presets[0], "tan", "brown",
-                          "cornsilk", "maroon")
-        self.check_preset(navigator_bank.presets[1], "tan", "brown",
-                          "cornsilk", "maroon")
-        bank_one = base_model.banks[1]
-        self.check_bank(bank_one, None, None)
-        self.check_preset(bank_one.presets[0], None, None,
-                          None, None)
-        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_one.presets[2], "tan", "brown",
-                          "cornsilk", "maroon")
-        bank_two = base_model.banks[2]
-        self.check_bank(bank_two, "blueviolet", "thistle")
-        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
-                          "olive", "indigo")
-        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_two.presets[2], "tan", "brown",
-                          "cornsilk", "maroon")
-
-    def test_inheritance3(self):
-        # Navigator schema: same as default
-        # Default schema:
-        #   Bank: orange/red
-        #   Preset: skyblue/olivedrab
-        #   Preset Toggle: deeppink/mediumslateblue
-        # Bank 2 schema:
-        #   Bank: blueviolet/thistle
-        #   Preset: darkseagreen/olive
-        #   Preset Toggle: forestgreen/indigo
-        # Preset 2 schema:
-        #   Preset: khaki/lightyellow
-        #   Preset Toggle: darkkhaki/lightsalmon
-        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
-        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest3.yaml')
-        intuitive_model = intuitive_conf.parse(intuitive_file.load())
-        base_model = intuitive_model.to_base()
-        navigator_bank = base_model.banks[0]
-        self.check_bank(navigator_bank, "orange", "red")
-        self.check_preset(navigator_bank.presets[0], "skyblue", "deeppink",
-                          "olivedrab", "mediumslateblue")
-        self.check_preset(navigator_bank.presets[1], "skyblue", "deeppink",
-                          "olivedrab", "mediumslateblue")
-        bank_one = base_model.banks[1]
-        self.check_bank(bank_one, "orange", "red")
-        self.check_preset(bank_one.presets[0], "skyblue", "deeppink",
-                          "olivedrab", "mediumslateblue")
-        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_one.presets[2], "skyblue", "deeppink",
-                          "olivedrab", "mediumslateblue")
-        bank_two = base_model.banks[2]
-        self.check_bank(bank_two, "blueviolet", "thistle")
-        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
-                          "olive", "indigo")
-        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_two.presets[2], "skyblue", "deeppink",
-                          "olivedrab", "mediumslateblue")
-
-    def test_inheritance4(self):
-        # Navigator schema: None
-        # Default schema: None
-        # Bank 2 schema:
-        #   Bank: blueviolet/thistle
-        #   Preset: darkseagreen/olive
-        #   Preset Toggle: forestgreen/indigo
-        # Preset 2 schema:
-        #   Preset: khaki/lightyellow
-        #   Preset Toggle: darkkhaki/lightsalmon
-        intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
-        intuitive_file = jg.JsonGrammarFile(filename='Configs/ColorsTest4.yaml')
-        intuitive_model = intuitive_conf.parse(intuitive_file.load())
-        base_model = intuitive_model.to_base()
-        navigator_bank = base_model.banks[0]
-        self.check_bank(navigator_bank, None, None)
-        self.check_preset(navigator_bank.presets[0], None, None,
-                          None, None)
-        self.check_preset(navigator_bank.presets[1], None, None,
-                          None, None)
-        bank_one = base_model.banks[1]
-        self.check_bank(bank_one, None, None)
-        self.check_preset(bank_one.presets[0], None, None,
-                          None, None)
-        self.check_preset(bank_one.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_one.presets[2], None, None,
-                          None, None)
-        bank_two = base_model.banks[2]
-        self.check_bank(bank_two, "blueviolet", "thistle")
-        self.check_preset(bank_two.presets[0], "darkseagreen", "forestgreen",
-                          "olive", "indigo")
-        self.check_preset(bank_two.presets[1], "khaki", "darkkhaki",
-                          "lightyellow", "lightsalmon")
-        self.check_preset(bank_two.presets[2], "darkseagreen", "forestgreen",
-                          "olive", "indigo")
 
 
 if __name__ == '__main__':

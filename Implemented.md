@@ -90,7 +90,7 @@
 | Toggle Mode             | Yes         |  |
 | To Blink                | No          | |
 | To Message Scroll       | No          | |
-| Toggle Group            | No          | |
+| Toggle Group            | Yes         | |
 | LED Color               | Yes         |  |
 | LED Toggle Color        | Yes         |  |
 | LED Shift Color         | Yes         |  |
@@ -109,11 +109,11 @@
 | Message Array    | Partial     | Shared implementation |
 | *all others* | No          | |
 
-| Messages   | Implemented | Notes                                     |
-|------------|-------------|-------------------------------------------|
-| m (number) | Yes         | Must be in order                          |
-| c (channel) | Yes |                                           |
-| t (type) | Partial | PC, CC, Bank Jump, Page Jump, Toggle Page |
-| a (trigger) | Yes | Bank Triggers and Preset Triggers |
-| tg (Toggle Group) | Yes | but toggle groups not implemented |
-| mi (unknown) | No | |
+| Messages   | Implemented | Notes                                                                                  |
+|------------|-------------|----------------------------------------------------------------------------------------|
+| m (number) | Yes         | Must be in order                                                                       |
+| c (channel) | Yes |                                                                                        |
+| t (type) | Partial | PC, CC, Bank Jump, Page Jump, Toggle Page                                              |
+| a (trigger) | Yes | Bank Triggers and Preset Triggers                                                      |
+| tg (Toggle Group) | Yes | but toggle groups not implemented. Not sure what this is, as toggle groups are presets |
+| mi (unknown) | No |                                                                                        |

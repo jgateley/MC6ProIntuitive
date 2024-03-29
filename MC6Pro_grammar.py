@@ -13,7 +13,7 @@ import json_grammar as jg
 # Model object for MIDI messages
 class MidiMessage(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('MidiMessage')
         self.msg_array_data = None
         self.channel = None
         self.type = None
@@ -22,9 +22,17 @@ class MidiMessage(jg.JsonGrammarModel):
 
     def __eq__(self, other):
         result = (isinstance(other, MidiMessage) and
-                  self.msg_array_data == other.msg_array_data and
-                  self.channel == other.channel and self.type == other.type and
+                  self.type == other.type and
+                  self.channel == other.channel and
                   self.trigger == other.trigger and self.toggle_group == other.toggle_group)
+        if self.type in [1, 2, 13, 14, 15]:
+            if self.msg_array_data is None:
+                if other.msg_array_data is not None:
+                    result = result and other.msg_array_data[0] is None and other.msg_array_data[1] is None
+            else:
+                result = result and self.msg_array_data[0:2] == other.msg_array_data[0:2]
+        else:
+            raise jg.JsonGrammarException('not implemented')
         # Debugging: set a breakpoint on the self.modified line to discovery where two items differ
         if not result:
             self.modified = True
@@ -34,7 +42,7 @@ class MidiMessage(jg.JsonGrammarModel):
 # Model for a Preset
 class Preset(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('Preset')
         self.short_name = None
         self.toggle_name = None
         self.long_name = None
@@ -45,6 +53,7 @@ class Preset(jg.JsonGrammarModel):
         self.strip_color = None
         self.strip_toggle_color = None
         self.to_toggle = None
+        self.toggle_group = None
         self.messages = None
 
     def __eq__(self, other):
@@ -59,6 +68,7 @@ class Preset(jg.JsonGrammarModel):
                   self.strip_color == other.strip_color and
                   self.strip_toggle_color == other.strip_toggle_color and
                   self.to_toggle == other.to_toggle and
+                  self.toggle_group == other.toggle_group and
                   self.messages == other.messages)
         # Debugging: set a breakpoint on the self.modified line to discovery where two items differ
         if not result:
@@ -74,7 +84,7 @@ class Preset(jg.JsonGrammarModel):
 # Model for a Bank
 class Bank(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('Bank')
         self.name = None
         self.description = None
         self.short_name = None
@@ -94,6 +104,7 @@ class Bank(jg.JsonGrammarModel):
                   self.background_color == other.background_color and
                   self.to_display == other.to_display and
                   self.clear_toggle == other.clear_toggle and
+                  self.messages == other.messages and
                   self.presets == other.presets)
         # Debugging: set a breakpoint on the self.modified line to discovery where two items differ
         if not result:
@@ -105,11 +116,16 @@ class Bank(jg.JsonGrammarModel):
             self.presets = [None] * 24
         self.presets[pos] = preset
 
+    def set_message(self, message, pos):
+        if self.messages is None:
+            self.messages = [None] * 32
+        self.messages[pos] = message
+
 
 # Model for a MIDI Channel Name mapping
 class MidiChannel(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('MidiChannel')
         self.name = None
 
     def __eq__(self, other):
@@ -123,7 +139,7 @@ class MidiChannel(jg.JsonGrammarModel):
 # Model for a Bank Arrangement Item
 class BankArrangementItem(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('BankArrangementItem')
         self.name = None
 
     def __eq__(self, other):
@@ -137,7 +153,7 @@ class BankArrangementItem(jg.JsonGrammarModel):
 # Model for the entire backup/config file
 class MC6Pro(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('MC6Pro')
         self.hash = None
         self.download_date = None
         self.banks = None
@@ -211,7 +227,7 @@ preset_array_schema = \
              jg.Dict.make_key('toToggle', jg.Atom(bool, False, var='to_toggle')),
              jg.Dict.make_key('toBlink', jg.false_atom),
              jg.Dict.make_key('toMsgScroll', jg.false_atom),
-             jg.Dict.make_key('toggleGroup', jg.zero_atom),
+             jg.Dict.make_key('toggleGroup', jg.Atom(int, 0, var='toggle_group')),
              # the led is the strip at the bottom (top?) of the window
              jg.Dict.make_key('ledColor', jg.Atom(int, 0, var='strip_color')),
              jg.Dict.make_key('ledToggleColor', jg.Atom(int, 0, var='strip_toggle_color')),

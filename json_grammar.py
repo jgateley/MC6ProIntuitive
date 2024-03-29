@@ -62,8 +62,9 @@ class JsonGrammarException(Exception):
 
 class JsonGrammarModel:
     """Base class for models, includes the modified boolean"""
-    def __init__(self):
+    def __init__(self, name):
         self.modified = False
+        self.name = name
 
 
 class JsonGrammarNode:
@@ -607,7 +608,7 @@ class JsonGrammar:
             model.modified = True
             model_vars = vars(model)
             if schema.variable not in model_vars:
-                raise JsonGrammarException('model_missing_var', 'In ' + name + ' the model ' + str(model) +
+                raise JsonGrammarException('model_missing_var', 'In ' + name + ' the model ' + model.name +
                                            ' is missing the variable ' + schema.variable)
             if model_vars[schema.variable] is not None:
                 raise JsonGrammarException('multiply_assigned_var', 'Variable is assigned multipe times')
@@ -646,8 +647,10 @@ class JsonGrammar:
                                                "In gen_elem, have a variable that isn't a model")
                 model_vars = vars(model)
                 if schema.variable not in model_vars.keys():
+                    # TODO: Need name/breadcrumb better error
                     raise JsonGrammarException('variable_not_in_model',
-                                               'In gen_elem, there is a variable that is not in the model')
+                                               'The variable ' + schema.variable + ' is not in the model ' +
+                                               model.name)
                 sub_model = model_vars[schema.variable]
 
         result = schema.gen(self, sub_model, context, list_pos)

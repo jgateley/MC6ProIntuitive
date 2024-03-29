@@ -1,5 +1,13 @@
 
 # Change Log
+## [0.1.1] - 2024-03-29
+  
+- Added Toggle Group
+- Improved error messages
+- Added versions to sample files
+- Better versioning
+- Fixed bug: bank messages not being converted to Base
+
 ## [0.1.0] - 2024-03-17
   
 - Initial version with a change log

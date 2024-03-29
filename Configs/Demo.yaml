@@ -1,5 +1,5 @@
 # Version, required
-version: 0.1.0
+version: 0.1.1
 # The MIDI channel assigned to the MC6Pro
 midi_channel: 3
 # The list of MIDI channels, the position in the list determines the channel number (1 based)
@@ -51,7 +51,13 @@ messages:
 - {channel: H9, name: H9 Wah PhasyWah, type: PC, number: 8}
 - {channel: Timeline, name: Timeline Disable, type: CC, number: 102, value: 0}
 - {channel: Timeline, name: Timeline Enable, type: CC, number: 102, value: 127}
+- {channel: Timeline, name: Timeline Bank 0, type: CC, number: 0, value: 0}
+- {channel: Timeline, name: Timeline Bank 1, type: CC, number: 0, value: 1}
+- {channel: Timeline, name: Timeline Easy Delay, type: PC, number: 100}
+- {channel: Timeline, name: Timeline Heavy Delay, type: PC, number: 101}
 - {channel: Looper, name: Looper Test, type: CC, number: 34, value: 0}
+# startup messages
+on_startup: [H9 Enable, Iridium Enable, Timeline Enable]
 # Banks - as a list
 banks:
 - name: Noodling
@@ -60,13 +66,12 @@ banks:
 - name: H9 Chorus
   description: H9 chorus sounds
   display_description: true
-  messages:
-  - {midi_message: H9 Enable, trigger: On Enter Bank - Execute Once Only}
   presets:
   - short_name: Enabled
     toggle_name: Disabled
     colors: bypass
     toggle_mode: true
+    toggle_group: 2
     messages:
     - {midi_message: H9 Disable, toggle: one}
     - {midi_message: H9 Enable, toggle: two}
@@ -87,6 +92,7 @@ banks:
     toggle_name: Disabled
     colors: bypass
     toggle_mode: true
+    toggle_group: 2
     messages:
     - {midi_message: H9 Disable, toggle: one}
     - {midi_message: H9 Enable, toggle: two}
@@ -107,6 +113,7 @@ banks:
     toggle_name: Disabled
     colors: bypass
     toggle_mode: true
+    toggle_group: 2
     messages:
     - {midi_message: H9 Disable, toggle: one}
     - {midi_message: H9 Enable, toggle: two}
@@ -119,6 +126,26 @@ banks:
   - short_name: PhasyWah
     messages:
     - {midi_message: H9 Wah PhasyWah}
+- name: Timeline
+  description: Various delay sounds
+  display_description: true
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    colors: bypass
+    toggle_mode: true
+    toggle_group: 3
+    messages:
+    - {midi_message: Timeline Disable, toggle: one}
+    - {midi_message: Timeline Enable, toggle: two}
+  - short_name: Easy Delay
+    messages:
+    - {midi_message: Timeline Bank 0}
+    - {midi_message: Timeline Easy Delay}
+  - short_name: Heavy Delay
+    messages:
+    - {midi_message: Timeline Bank 0}
+    - {midi_message: Timeline Heavy Delay}
 - name: Iridium
   description: Iridium choices
   display_description: true
@@ -146,17 +173,6 @@ banks:
     messages:
     - {midi_message: Iridium Bank 0}
     - {midi_message: Iridium Max Distortion}
-- name: Timeline
-  description: Various delay sounds
-  display_description: true
-  presets:
-  - short_name: Enabled
-    toggle_name: Disabled
-    colors: bypass
-    toggle_mode: true
-    messages:
-    - {midi_message: Timeline Disable, toggle: one}
-    - {midi_message: Timeline Enable, toggle: two}
 - name: For What It's Worth
   description: Crosby, Stills, Nash and Young
   display_description: true

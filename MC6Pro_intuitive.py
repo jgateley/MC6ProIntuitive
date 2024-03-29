@@ -14,7 +14,7 @@ import json_grammar as jg
 # Naming makes them more intuitive
 # At the top level: they are easily resused
 
-intuitive_version = '0.1.0'
+intuitive_version = '0.1.1'
 
 preset_colors = ["black", "lime", "blue", "color3", "yellow", "orchid", "gray", "white",
                  "orange", "red", "skyblue", "deeppink", "olivedrab", "mediumslateblue", "darkgreen", "color15",
@@ -191,7 +191,7 @@ class ColorSchema(jg.JsonGrammarModel):
         return schema
 
     def __init__(self):
-        super().__init__()
+        super().__init__('ColorSchema')
         self.name = None
         self.bank_color = None
         self.bank_background_color = None
@@ -272,7 +272,7 @@ class IntuitiveMessage(jg.JsonGrammarModel):
         return message_catalog.add(result)
 
     def __init__(self):
-        super().__init__()
+        super().__init__('IntuitiveMessage')
         self.name = None
         self.channel = None
         self.type = None
@@ -445,7 +445,7 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
         return result
 
     def __init__(self):
-        super().__init__()
+        super().__init__('IntuitivePresetMessage')
         self.trigger = None
         self.toggle = None
         self.midi_message = None
@@ -489,8 +489,15 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
 # Only has a trigger, not a toggle
 class IntuitiveBankMessage(jg.JsonGrammarModel):
 
+    @staticmethod
+    def make_on_startup(name):
+        msg = IntuitiveBankMessage()
+        msg.trigger = bank_message_trigger[3]  # on enter bank, execute only once
+        msg.midi_message = name
+        return msg
+
     def __init__(self):
-        super().__init__()
+        super().__init__('IntuitiveBankMessage')
         self.trigger = None
         self.midi_message = None
 
@@ -537,7 +544,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
         return result
 
     def __init__(self):
-        super().__init__()
+        super().__init__('IntuitivePreset')
         self.short_name = None
         self.long_name = None
         self.toggle_name = None
@@ -545,6 +552,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
         self.strip_color = None
         self.strip_toggle_color = None
         self.toggle_mode = None
+        self.toggle_group = None
         self.messages = None
 
     def __eq__(self, other):
@@ -552,7 +560,8 @@ class IntuitivePreset(jg.JsonGrammarModel):
                   self.long_name == other.long_name and self.toggle_name == other.toggle_name and
                   self.colors == other.colors and
                   self.strip_color == other.strip_color and self.strip_toggle_color == other.strip_toggle_color and
-                  self.toggle_mode == other.toggle_mode and self.messages == other.messages)
+                  self.toggle_mode == other.toggle_mode and self.toggle_group == other.toggle_group and
+                  self.messages == other.messages)
         if not result:
             self.modified = True
         return result
@@ -563,6 +572,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
         self.short_name = base_preset.short_name
         self.long_name = base_preset.long_name
         self.toggle_name = base_preset.toggle_name
+        self.toggle_group = base_preset.toggle_group
         self.colors = colors_catalog.add_preset_schema(bank_color_schema,
                                                        base_preset.name_color, base_preset.name_toggle_color,
                                                        base_preset.background_color,
@@ -585,6 +595,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
         base_preset.short_name = self.short_name
         base_preset.long_name = self.long_name
         base_preset.toggle_name = self.toggle_name
+        base_preset.toggle_group = self.toggle_group
         if self.colors is None:
             preset_colors_schema = bank_colors_schema
         else:
@@ -611,7 +622,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
 
 class IntuitiveBank(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('IntuitiveBank')
         self.name = None
         self.description = None
         self.colors = None
@@ -690,6 +701,11 @@ class IntuitiveBank(jg.JsonGrammarModel):
         base_bank.background_color = bank_colors_schema.to_base_bank_color(bank_colors_schema.bank_background_color)
         base_bank.to_display = self.display_description
         base_bank.clear_toggle = self.clear_toggle
+        if self.messages is not None:
+            for pos, message in enumerate(self.messages):
+                if message is not None:
+                    base_message = message.to_base(message_catalog, bank_catalog, midi_channels)
+                    base_bank.set_message(base_message, pos)
         if self.presets is not None:
             for pos, preset in enumerate(self.presets):
                 if preset is not None:
@@ -743,7 +759,7 @@ class IntuitiveBank(jg.JsonGrammarModel):
 
 class IntuitiveMidiChannel(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__("IntuitiveMidiChannel")
         self.name = None
 
     def __eq__(self, other):
@@ -765,7 +781,7 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
     page_size = 6
 
     def __init__(self):
-        super().__init__()
+        super().__init__('MC6ProIntuitive')
         self.midi_channels = None
         self.messages = None
         self.message_catalog = None
@@ -775,6 +791,7 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
         self.midi_channel = None
         self.navigator = None
         self.version = None
+        self.on_startup = None
 
     # Do not check version in equality
     def __eq__(self, other):
@@ -970,6 +987,15 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
         if self.navigator:
             self.build_roadmap()
 
+        # now add on startup messages
+        if self.on_startup:
+            if self.banks is None:
+                raise IntuitiveException('no_banks', "Must have at least one bank to use on_startup messages.")
+            if self.banks[0].messages is None:
+                self.banks[0].messages = []
+            for startup_message in self.on_startup:
+                self.banks[0].messages.append(IntuitiveBankMessage.make_on_startup(startup_message))
+
         # Convert the model to a base model
         if self.banks is not None:
             bank_catalog = {}
@@ -1045,6 +1071,7 @@ preset_schema = \
              jg.Dict.make_key('long_name', jg.Atom(str, '', var='long_name')),
              jg.Dict.make_key('toggle_name', jg.Atom(str, '', var='toggle_name')),
              jg.Dict.make_key('toggle_mode', jg.Atom(bool, False, var='toggle_mode')),
+             jg.Dict.make_key('toggle_group', jg.Atom(int, 0, var='toggle_group')),
              jg.Dict.make_key('colors', jg.Atom(str, '', var='colors')),
              jg.Dict.make_key('strip_color', jg.Enum(preset_colors, preset_empty_color, var='strip_color')),
              jg.Dict.make_key('strip_toggle_color',
@@ -1094,5 +1121,6 @@ mc6pro_intuitive_schema = \
              jg.Dict.make_key('midi_channel', jg.Atom(int, 1, var='midi_channel')),
              jg.Dict.make_key('colors', jg.List(0, colors_schema, var='colors')),
              jg.Dict.make_key('navigator', jg.Atom(bool, False, var='navigator')),
+             jg.Dict.make_key('on_startup', jg.List(0, jg.Atom(str), var='on_startup')),
              jg.Dict.make_key('version', jg.Atom(str, value=version_verify, var='version'), required=True)],
             model=MC6ProIntuitive)

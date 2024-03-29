@@ -8,7 +8,7 @@ import json_grammar as jg
 # Model object used for testing
 class ObjectForTests(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('ObjectForTests')
         self.x = None
 
     def __eq__(self, other):
@@ -18,7 +18,7 @@ class ObjectForTests(jg.JsonGrammarModel):
 # A second model object used for testing
 class Object2ForTests(jg.JsonGrammarModel):
     def __init__(self):
-        super().__init__()
+        super().__init__('Object2ForTests')
         self.y = None
 
     def __eq__(self, other):

@@ -18,9 +18,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="MC6Pro Configuration Management")
     parser.add_argument('--base-to-intuitive', '-b', action='store_true',
                         help='Convert a base config to an intuitive config')
+    parser.add_argument('--one-button', '-1', action='store_true',
+                        help='Force navigator mode to use 1 button (if enabled)')
+    parser.add_argument('--two-button', '-2', action='store_true',
+                        help='Force navigator mode to use 2 buttons (if enabled)')
     parser.add_argument('source', help='The source config')
     parser.add_argument('dest', help='The destination config')
     args = parser.parse_args()
+
+    navigator_mode = None
+    if args.two_button:
+        navigator_mode = "Two Button"
+    elif args.one_button:
+        navigator_mode = "One Button"
 
     base_conf = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
     intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
@@ -28,16 +38,25 @@ if __name__ == '__main__':
     source_file = jg.JsonGrammarFile(args.source)
     dest_file = jg.JsonGrammarFile(args.dest)
 
-    if args.base_to_intuitive:
-        base_model = base_conf.parse_config(source_file.load())
+    try:
+        if args.base_to_intuitive:
+            base_model = base_conf.parse_config(source_file.load())
 
-        intuitive_model = MC6Pro_intuitive.MC6ProIntuitive()
-        intuitive_model.from_base(base_model)
+            intuitive_model = MC6Pro_intuitive.MC6ProIntuitive()
+            intuitive_model.from_base(base_model)
 
-        dest_file.save(intuitive_conf.gen_config(intuitive_model))
-    else:
-        intuitive_model = intuitive_conf.parse_config(source_file.load())
+            dest_file.save(intuitive_conf.gen_config(intuitive_model))
+        else:
+            intuitive_model = intuitive_conf.parse_config(source_file.load())
 
-        base_model = intuitive_model.to_base()
+            base_model = intuitive_model.to_base(navigator_mode)
 
-        dest_file.save(base_conf.gen_config(base_model))
+            dest_file.save(base_conf.gen_config(base_model))
+    except jg.JsonGrammarException as e:
+        print("ERROR\n")
+        print(e.args[1])
+        exit(1)
+    except MC6Pro_intuitive.IntuitiveException as e:
+        print("ERROR\n")
+        print(e.args[1])
+        exit(1)

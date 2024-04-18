@@ -68,7 +68,8 @@ class JsonGrammarModel:
 
 
 class JsonGrammarNode:
-    def __init__(self, var=None, model=None, cleanup=None):
+    def __init__(self, name, var=None, model=None, cleanup=None):
+        self.name = name
         self.variable = None
         self.model = None
         self.cleanup = None
@@ -86,11 +87,14 @@ class JsonGrammarNode:
     def gen(self, grammar, model, context, list_pos):
         raise JsonGrammarException("not implemented")
 
+    def print(self, indent):
+        raise JsonGrammarException("not implemented")
+
 
 # Base class for Dict and SwitchDict nodes
 class DictBase(JsonGrammarNode):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
 
     @staticmethod
     def make_key(key_name, key_schema, required=False):
@@ -102,7 +106,6 @@ class DictBase(JsonGrammarNode):
             raise JsonGrammarException('type_not_dict', "parse called on non_dict")
 
     def parse_keys(self, grammar, elem, name, list_pos, model, keys, result, seen_keys):
-        name = name + ":" + self.name
         self.check_elem(elem)
 
         # The list of keys seen ensures we don't allow keys to appear twice
@@ -144,6 +147,10 @@ class DictBase(JsonGrammarNode):
                     missing_keys.append(key)
             message = 'While parsing ' + name + ' the following keys are undefined: '
             message += ", ".join(missing_keys)
+            valid_keys = []
+            for key in keys:
+                valid_keys.append(key['name'])
+            message += "\nThe valid keys are: " + ", ".join(valid_keys)
             raise JsonGrammarException('dict_bad_keys', message)
         if result == {}:
             return None
@@ -184,11 +191,22 @@ class DictBase(JsonGrammarNode):
         else:
             return result
 
+    @staticmethod
+    def print_key(indent, key, prefix=None):
+        result = ' ' * indent
+        if prefix is not None:
+            result += prefix + ' '
+        result += key['name']
+        if key['required']:
+            result += '(required)'
+        result += ":\n"
+        result += key['schema'].print(indent + 2)
+        return result
+
 
 class Dict(DictBase):
     def __init__(self, name, keys, **kwargs):
-        super().__init__(**kwargs)
-        self.name = name
+        super().__init__(name, **kwargs)
         self.keys = keys
 
     # parse_dict
@@ -213,11 +231,18 @@ class Dict(DictBase):
 
         return super().gen_keys(grammar, model, self.keys, list_pos, result, variable_result, found_keys)
 
+    def print(self, indent):
+        result = ' ' * indent
+        result += 'Dict ' + self.name + "\n"
+        indent += 2
+        for key in self.keys:
+            result += self.print_key(indent, key)
+        return result
+
 
 class SwitchDict(DictBase):
     def __init__(self, name, switch_key, case_keys, common_keys=None, **kwargs):
-        super().__init__(**kwargs)
-        self.name = name
+        super().__init__(name, **kwargs)
         self.switch_key = switch_key
         self.case_keys = case_keys
         self.common_keys = common_keys
@@ -282,10 +307,25 @@ class SwitchDict(DictBase):
 
         return super().gen_keys(grammar, model, keys, list_pos, result, variable_result, found_keys)
 
+    def print(self, indent):
+        result = ' ' * indent
+        result += 'SwitchDict ' + self.name + "\n"
+        indent += 2
+        result += self.print_key(indent, self.switch_key, prefix='Switch Key:')
+        if self.common_keys is not None:
+            result += ' ' * indent + 'Common Keys:' + "\n"
+            for key in self.common_keys:
+                result += self.print_key(indent + 2, key)
+        for case_key in self.case_keys:
+            result += ' ' * indent + 'Case ' + case_key + ":\n"
+            for key in self.case_keys[case_key]:
+                result += self.print_key(indent + 2, key)
+        return result
+
 
 class List(JsonGrammarNode):
-    def __init__(self, length, schema, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, name, length, schema, **kwargs):
+        super().__init__(name, **kwargs)
         self.length = length
         self.schema = schema
 
@@ -368,10 +408,16 @@ class List(JsonGrammarNode):
                 result = None
         return result
 
+    def print(self, indent):
+        result = ' ' * indent
+        result += 'List ' + self.name + '(' + str(self.length) + "):\n"
+        result += self.schema.print(indent + 2)
+        return result
+
 
 class Enum(JsonGrammarNode):
-    def __init__(self, base, default, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, name, base, default, **kwargs):
+        super().__init__(name, **kwargs)
         self.base = base
         if default is not None:
             try:
@@ -384,7 +430,9 @@ class Enum(JsonGrammarNode):
     # The result is significant if it is not default
     def parse(self, grammar, elem, name, context, list_pos, model):
         if not isinstance(elem, str):
-            raise JsonGrammarException('enum_wrong_type', "parse_enum called with element not a str")
+            msg = "In Enum " + name + "\n"
+            msg += "Enum expected a string, but received: " + str(elem)
+            raise JsonGrammarException('enum_wrong_type', msg)
         # Make sure the elem is valid
         try:
             self.base.index(elem)
@@ -421,10 +469,18 @@ class Enum(JsonGrammarNode):
         else:
             return result
 
+    def print(self, indent):
+        result = ' ' * indent + 'Enum ' + self.name + ': ['
+        if len(self.base) > 2:
+            result += self.base[0] + ", " + self.base[1] + ", ...]\n"
+        else:
+            result += ", ".join(self.base) + "]\n"
+        return result
+
 
 class Atom(JsonGrammarNode):
-    def __init__(self, atom_type, default=None, value=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, name, atom_type, default=None, value=None, **kwargs):
+        super().__init__(name, **kwargs)
         self.type = atom_type
         self.default = default
         self.value = value
@@ -506,6 +562,15 @@ class Atom(JsonGrammarNode):
         else:
             return result
 
+    def print(self, indent):
+        result = " " * indent
+        result += "Atom " + self.name
+        result += '(' + str(self.type.__name__) + '): '
+        if self.value is not None:
+            result += str(self.value)
+        result += "\n"
+        return result
+
 
 # Value/Default atom functions, commonly used
 # identity just returns the position in the list, zero based
@@ -523,12 +588,12 @@ def identity2(_elem, _ctxt, lp):
     return lp[-2]
 
 
-false_atom = Atom(bool, value=False)
-true_atom = Atom(bool, value=True)
-zero_atom = Atom(int, value=0)
-empty_atom = Atom(str, value='')
-identity_atom = Atom(int, value=identity)
-identity2_atom = Atom(int, value=identity2)
+false_atom = Atom('False', bool, value=False)
+true_atom = Atom('True', bool, value=True)
+zero_atom = Atom('Zero', int, value=0)
+empty_atom = Atom('Empty', str, value='')
+identity_atom = Atom('I', int, value=identity)
+identity2_atom = Atom('I2', int, value=identity2)
 
 
 # Helper function to remove all None elements from the end of a list
@@ -592,6 +657,10 @@ class JsonGrammar:
             model = schema.model()
             new_model = True
 
+        if name == "":
+            name = schema.name
+        else:
+            name = name + ":" + schema.name
         result = schema.parse(self, elem, name, context, list_pos, model)
 
         if new_model:
@@ -647,7 +716,6 @@ class JsonGrammar:
                                                "In gen_elem, have a variable that isn't a model")
                 model_vars = vars(model)
                 if schema.variable not in model_vars.keys():
-                    # TODO: Need name/breadcrumb better error
                     raise JsonGrammarException('variable_not_in_model',
                                                'The variable ' + schema.variable + ' is not in the model ' +
                                                model.name)
@@ -655,6 +723,9 @@ class JsonGrammar:
 
         result = schema.gen(self, sub_model, context, list_pos)
         return result
+
+    def print(self, indent=0):
+        return self.schema.print(indent)
 
     def parse_config(self, elem):
         return self.parse(elem, self.schema, "", None, [], None)

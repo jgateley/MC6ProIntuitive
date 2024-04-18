@@ -31,14 +31,14 @@ minimal_conf = jg.JsonGrammar(None, True)
 
 # Helper function
 def make_common_switch():
-    switch_enum = jg.Enum(['a', 'b'], default='a')
+    switch_enum = jg.Enum('enum', ['a', 'b'], default='a')
     switch_key = jg.SwitchDict.make_key('switch', switch_enum)
-    a_keys = [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
-              jg.SwitchDict.make_key('a2', jg.Atom(int, 2))]
-    b_keys = [jg.SwitchDict.make_key('b1', jg.Atom(int, 1)),
-              jg.SwitchDict.make_key('b2', jg.Atom(int, 2))]
-    common_keys = [jg.SwitchDict.make_key('c1', jg.Atom(int, 1)),
-                   jg.SwitchDict.make_key('c2', jg.Atom(int, 2))]
+    a_keys = [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+              jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2))]
+    b_keys = [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+              jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2))]
+    common_keys = [jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1)),
+                   jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2))]
     test_switch = jg.SwitchDict('test', switch_key,
                                 {'a': a_keys, 'b': b_keys}, common_keys)
     return test_switch
@@ -169,14 +169,14 @@ class JsonGrammarElementStructureTestCase(unittest.TestCase):
 
     # Test a list, with none, var, model and both
     def test_list(self):
-        schema = jg.Atom(int, value=1)
-        self.validate_list(jg.List(3, schema), 3, schema, None, None, None)
-        self.validate_list(jg.List(3, schema, var='x'), 3, schema, 'x', None, None)
-        self.validate_list(jg.List(3, schema, model=ObjectForTests),
+        schema = jg.Atom('atom', int, value=1)
+        self.validate_list(jg.List('list', 3, schema), 3, schema, None, None, None)
+        self.validate_list(jg.List('list', 3, schema, var='x'), 3, schema, 'x', None, None)
+        self.validate_list(jg.List('list', 3, schema, model=ObjectForTests),
                            3, schema, None, ObjectForTests, None)
-        self.validate_list(jg.List(3, schema, var='x', model=ObjectForTests),
+        self.validate_list(jg.List('list', 3, schema, var='x', model=ObjectForTests),
                            3, schema, 'x', ObjectForTests, None)
-        self.validate_list(jg.List(3, schema, var='x', model=ObjectForTests, cleanup=3),
+        self.validate_list(jg.List('list', 3, schema, var='x', model=ObjectForTests, cleanup=3),
                            3, schema, 'x', ObjectForTests, 3)
 
     # Test an enum element where a default is not a member of the enum
@@ -184,14 +184,14 @@ class JsonGrammarElementStructureTestCase(unittest.TestCase):
         enum_base = ["one", "two", "three"]
         # Test default with incorrect value
         with self.assertRaises(jg.JsonGrammarException) as context:
-            jg.Enum(enum_base, "four")
+            jg.Enum('enum', enum_base, "four")
         self.assertEqual('bad_enum_value', context.exception.args[0])
 
     # Test atom structure
     # Test that default and value both specified is an error
     def test_atom(self):
         with self.assertRaises(jg.JsonGrammarException) as context:
-            jg.Atom(int, 1, value=2)
+            jg.Atom('atom', int, 1, value=2)
         self.assertEqual(context.exception.args[0], 'both_value_default')
 
 
@@ -291,10 +291,10 @@ class JsonGrammarBaseTestCase(unittest.TestCase):
 class JsonGrammarParserTestCase(JsonGrammarBaseTestCase):
 
     def setUp(self):
-        self.var_schema = jg.Atom(int, 1, var='x')
+        self.var_schema = jg.Atom('atom', int, 1, var='x')
         self.model_schema = jg.Dict('foo',
                                     [jg.Dict.make_key("a", self.var_schema),
-                                     jg.Dict.make_key("b", jg.Atom(int, 1))],
+                                     jg.Dict.make_key("b", jg.Atom('atom', int, 1))],
                                     model=ObjectForTests)
 
     def test_parse_errors(self):
@@ -325,7 +325,7 @@ class JsonGrammarParserTestCase(JsonGrammarBaseTestCase):
     def test_model_var_cases(self):
         # Both model and variable in schema
         inner_schema = jg.Dict('inner',
-                               [jg.Dict.make_key('x', jg.Atom(int, 1, var='x'))],
+                               [jg.Dict.make_key('x', jg.Atom('atom', int, 1, var='x'))],
                                var='y', model=ObjectForTests)
         outer_schema = jg.Dict('outer',
                                [jg.Dict.make_key('y', inner_schema)], model=Object2ForTests)
@@ -345,7 +345,7 @@ class JsonGrammarParserTestCase(JsonGrammarBaseTestCase):
 
     # Test that a var appearing as a list elem raises a multiply assigned error
     def test_var_in_list(self):
-        list_schema = jg.List(3, jg.Atom(int, 1, var='x'), model=ObjectForTests)
+        list_schema = jg.List('list', 3, jg.Atom('atom', int, 1, var='x'), model=ObjectForTests)
         self.run_grammar_parse_error(list_schema, [1, 2, 3], 'multiply_assigned_var')
 
 
@@ -356,23 +356,23 @@ class JsonGrammarGenTestCase(JsonGrammarBaseTestCase):
 
         # Test dictionary
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
-                               jg.Dict.make_key('b', jg.Atom(int, value=2)),
-                               jg.Dict.make_key('c', jg.Atom(int, value=3))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, value=2)),
+                               jg.Dict.make_key('c', jg.Atom('atom', int, value=3))])
         self.run_grammar_gen(test_schema, {'a': 1, 'b': 2, 'c': 3}, {'a': 1, 'b': 2, 'c': 3}, None)
 
         # Test list
-        test_schema = jg.List(3, jg.Atom(int, value=1))
+        test_schema = jg.List('list', 3, jg.Atom('atom', int, value=1))
         self.run_grammar_gen(test_schema, None, [1, 1, 1], [1, 1, 1])
 
         # Test atom
-        test_schema = jg.Atom(int, value=1)
+        test_schema = jg.Atom('atom', int, value=1)
         self.run_grammar_gen(test_schema, 1, 1, None)
 
         # Test variable expansion
         test_model = ObjectForTests()
         test_model.x = 3
-        test_schema = jg.Atom(int, 1, var='x')
+        test_schema = jg.Atom('atom', int, 1, var='x')
         self.run_grammar_gen(test_schema, test_model, 3, 3)
 
 
@@ -388,17 +388,17 @@ class JsonGrammarDictNodeParseTestCase(JsonGrammarBaseTestCase):
 
         # Key errors
         # elem has too many keys
-        test_schema = jg.Dict('foo', [jg.Dict.make_key('a', jg.Atom(int, 1))])
+        test_schema = jg.Dict('foo', [jg.Dict.make_key('a', jg.Atom('atom', int, 1))])
         self.run_node_parse_error(test_schema, {'a': 1, 'b': 2}, 'dict_bad_keys')
         # elem has too few keys, and some are misnamed
-        test_schema = jg.Dict('foo', [jg.Dict.make_key('b', jg.Atom(int, 1)),
-                                      jg.Dict.make_key('c', jg.Atom(int, 2))])
+        test_schema = jg.Dict('foo', [jg.Dict.make_key('b', jg.Atom('atom', int, 1)),
+                                      jg.Dict.make_key('c', jg.Atom('atom', int, 2))])
         self.run_node_parse_error(test_schema, {'a': 1}, 'dict_bad_keys')
         # elem has too few keys, all correct, complete => error, minimal => parse
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
-                               jg.Dict.make_key('b', jg.Atom(int, 2)),
-                               jg.Dict.make_key('c', jg.Atom(int, 3))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, 1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, 2)),
+                               jg.Dict.make_key('c', jg.Atom('atom', int, 3))])
         self.run_node_parse_complete_error(test_schema, {'a': 1, 'b': 2}, 'dict_bad_keys', None)
         self.run_node_parse_complete_error(test_schema, {'a': 2}, 'dict_bad_keys', {'a': 2})
         self.run_node_parse_complete_error(test_schema, {'b': 1}, 'dict_bad_keys', {'b': 1})
@@ -407,8 +407,8 @@ class JsonGrammarDictNodeParseTestCase(JsonGrammarBaseTestCase):
         test_schema = jg.Dict('foo', [jg.Dict.make_key('b', None)])
         self.run_node_parse_error(test_schema, {'a': 1}, 'dict_bad_keys')
         # Key appears twice in dict/schema (grammar specified incorrectly)
-        test_schema = jg.Dict('foo', [jg.Dict.make_key('a', jg.Atom(int, value=0)),
-                                      jg.Dict.make_key('a', jg.Atom(int, value=0))])
+        test_schema = jg.Dict('foo', [jg.Dict.make_key('a', jg.Atom('atom', int, value=0)),
+                                      jg.Dict.make_key('a', jg.Atom('atom', int, value=0))])
         self.run_node_parse_error(test_schema, {'a': 0, 'b': 0}, 'dict_duplicate_keys')
 
     # Test parsing dictionaries
@@ -416,8 +416,8 @@ class JsonGrammarDictNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_dict(self):
         # Has right number of keys and subparsing
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
-                               jg.Dict.make_key('b', jg.Atom(int, 2))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, 1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, 2))])
         self.run_node_parse(test_schema, {'a': 1, 'b': 2}, None, None)
         self.run_node_parse(test_schema, {'a': 2, 'b': 2}, {'a': 2}, {'a': 2})
         self.run_node_parse(test_schema, {'a': 1, 'b': 1}, {'b': 1}, {'b': 1})
@@ -428,8 +428,8 @@ class JsonGrammarDictNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_dict_context(self):
         # Test that matching values work
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
-                               jg.Dict.make_key('b', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['a']))])
         self.run_node_parse(test_schema, {'a': 1, 'b': 1}, None, None)
 
         # Test values not matching work
@@ -437,15 +437,15 @@ class JsonGrammarDictNodeParseTestCase(JsonGrammarBaseTestCase):
 
         # Test value works against defaults
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
-                               jg.Dict.make_key('b', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, 1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['a']))])
         self.run_node_parse(test_schema, {'a': 2, 'b': 2}, {'a': 2}, {'a': 2})
         self.run_node_parse_error(test_schema, {'a': 2, 'b': 3}, 'atom_wrong_value')
 
         # Test defaults work
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
-                               jg.Dict.make_key('b', jg.Atom(int, lambda elem, ctxt, lp: ctxt['a']))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, 1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, lambda elem, ctxt, lp: ctxt['a']))])
         self.run_node_parse(test_schema, {'a': 1, 'b': 1}, None, None)
         self.run_node_parse(test_schema, {'a': 1, 'b': 2}, {'b': 2}, {'b': 2})
         self.run_node_parse(test_schema, {'a': 2, 'b': 2}, {'a': 2}, {'a': 2})
@@ -453,24 +453,24 @@ class JsonGrammarDictNodeParseTestCase(JsonGrammarBaseTestCase):
 
     def test_dict_required_key(self):
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, 1), required=True)])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, 1), required=True)])
         self.run_node_parse_error(test_schema, {}, 'dict_bad_keys')
 
 
 class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
     def __init__(self, *args, **kwargs):
         super(JsonGrammarSwitchDictNodeParseTestCase, self).__init__(*args, **kwargs)
-        self.test_switch_enum = jg.Enum(['a', 'b', 'c'], 'a')
+        self.test_switch_enum = jg.Enum('enum', ['a', 'b', 'c'], 'a')
         self.test_switch_key = jg.SwitchDict.make_key('x', self.test_switch_enum)
-        self.test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
-                                     jg.SwitchDict.make_key('a2', jg.Atom(int, 2)),
-                                     jg.SwitchDict.make_key('a3', jg.Atom(int, 3))],
-                               'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1)),
-                                     jg.SwitchDict.make_key('b2', jg.Atom(int, 2)),
-                                     jg.SwitchDict.make_key('b3', jg.Atom(int, 3))],
-                               'c': [jg.SwitchDict.make_key('c1', jg.Atom(int, 1)),
-                                     jg.SwitchDict.make_key('c2', jg.Atom(int, 2)),
-                                     jg.SwitchDict.make_key('c3', jg.Atom(int, 3))]}
+        self.test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                                     jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2)),
+                                     jg.SwitchDict.make_key('a3', jg.Atom('atom', int, 3))],
+                               'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                     jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2)),
+                                     jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                               'c': [jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1)),
+                                     jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2)),
+                                     jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
         self.test_switch = jg.SwitchDict('test', self.test_switch_key, self.test_case_keys)
 
     # Test parsing dictionaries, error cases
@@ -491,16 +491,16 @@ class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
         self.run_node_parse_error(self.test_switch, {'x': 'a', 'a1': 1, 'a2': 2, 'a4': 3}, 'dict_bad_keys')
 
         # Need to test when grammar is specified incorrectly, and a key appears twice in schema
-        switch_key = jg.SwitchDict.make_key('x', jg.Enum(['a', 'b'], None))
-        case_keys = {'a': [jg.SwitchDict.make_key('x', jg.Atom(str, 'z'))],
-                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int))]}
+        switch_key = jg.SwitchDict.make_key('x', jg.Enum('Enum', ['a', 'b'], None))
+        case_keys = {'a': [jg.SwitchDict.make_key('x', jg.Atom('atom', str, 'z'))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int))]}
         test_switch = jg.SwitchDict('foo', switch_key, case_keys)
         self.run_node_parse_error(test_switch, {'x': 'a', 'a1': 0}, 'dict_duplicate_keys')
 
-        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=0)),
-                           jg.SwitchDict.make_key('a1', jg.Atom(int, 1))],
-                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int)),
-                           jg.SwitchDict.make_key('b2', jg.Atom(int))]}
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, value=0)),
+                           jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int)),
+                           jg.SwitchDict.make_key('b2', jg.Atom('atom', int))]}
         test_switch = jg.SwitchDict('foo', switch_key, case_keys)
         self.run_node_parse_error(test_switch, {'x': 'a', 'a1': 0}, 'dict_duplicate_keys')
 
@@ -526,10 +526,10 @@ class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
                                            'dict_bad_keys', {'x': 'b', 'b1': 2})
 
     def test_parse_switch_dict_switch_var(self):
-        switch_enum = jg.Enum(['a', 'b'], None, var='x')
+        switch_enum = jg.Enum('enum', ['a', 'b'], None, var='x')
         switch_key = jg.SwitchDict.make_key('x', switch_enum)
-        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=1))],
-                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, value=1))]}
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, value=1))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, value=1))]}
         test_switch = jg.SwitchDict('test', switch_key, case_keys)
         self.run_node_parse_model(test_switch, {'x': 'a', 'a1': 1}, None, None, 'a')
         self.run_node_parse_model(test_switch, {'x': 'b', 'b1': 1}, None, None, 'b')
@@ -537,19 +537,19 @@ class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_switch_dict_context(self):
         # Test switch dict context
         # Test non switch key is a value context function, success and failure
-        switch_enum = jg.Enum(['a', 'b'], 'a')
+        switch_enum = jg.Enum('enum', ['a', 'b'], 'a')
         switch_key = jg.SwitchDict.make_key('x', switch_enum)
-        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=1)),
-                           jg.SwitchDict.make_key('a2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a1']))],
-                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1))]}
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, value=1)),
+                           jg.SwitchDict.make_key('a2', jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['a1']))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1))]}
         test_switch = jg.SwitchDict('test', switch_key, case_keys)
         self.run_node_parse(test_switch, {'x': 'a', 'a1': 1, 'a2': 1}, None, None)
         self.run_node_parse_error(test_switch, {'x': 'a', 'a1': 1, 'a2': 2}, 'atom_wrong_value')
 
         # Test non switch key is a default context function, match and doesn't match
-        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
-                           jg.SwitchDict.make_key('a2', jg.Atom(int, lambda elem, ctxt, lp: ctxt['a1']))],
-                     'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1))]}
+        case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                           jg.SwitchDict.make_key('a2', jg.Atom('atom', int, lambda elem, ctxt, lp: ctxt['a1']))],
+                     'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1))]}
         test_switch = jg.SwitchDict('test', switch_key, case_keys)
         self.run_node_parse(test_switch, {'x': 'a', 'a1': 1, 'a2': 1}, None, None)
         self.run_node_parse(test_switch, {'x': 'a', 'a1': 2, 'a2': 2}, {'a1': 2}, {'a1': 2})
@@ -566,26 +566,27 @@ class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
 class JsonGrammarListNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_list(self):
         # list isn't a list
-        test_schema = jg.List(1, jg.Atom(int, value=1))
+        test_schema = jg.List('list', 1, jg.Atom('atom', int, value=1))
         self.run_node_parse_error(test_schema, 3, 'type_not_list')
 
         # List is wrong length
-        test_schema = jg.List(2, jg.Atom(int, value=1))
+        test_schema = jg.List('list', 2, jg.Atom('atom', int, value=1))
         # Too long
         self.run_node_parse_error(test_schema, [1, 2, 3], 'list_bad_length')
         # Too short
         self.run_node_parse_complete_error(test_schema, [1], 'list_bad_length', None)
 
         # List is a list and right length, check list index
-        test_schema = jg.List(3, jg.Atom(int, value=lambda elem, ctxt, x: x[-1]))
+        test_schema = jg.List('list', 3, jg.Atom('atom', int, value=lambda elem, ctxt, x: x[-1]))
         self.run_node_parse(test_schema, [0, 1, 2], None, None)
 
         # test nested lists
-        test_schema = jg.List(3, jg.List(3, jg.Atom(int, value=lambda elem, ctxt, x: x[-1] + x[-2])))
+        test_schema = jg.List('list', 3, jg.List('list', 3,
+                                                 jg.Atom('atom', int, value=lambda elem, ctxt, x: x[-1] + x[-2])))
         self.run_node_parse(test_schema, [[0, 1, 2], [1, 2, 3], [2, 3, 4]], None, None)
 
         # Test lists with defaults
-        test_schema = jg.List(3, jg.Atom(int, 1))
+        test_schema = jg.List('list', 3, jg.Atom('atom', int, 1))
         # test list with all matching defaults
         self.run_node_parse(test_schema, [1, 1, 1], None, None)
 
@@ -598,7 +599,7 @@ class JsonGrammarListNodeParseTestCase(JsonGrammarBaseTestCase):
         self.run_node_parse(test_schema, [2, 2, 2], [2, 2, 2], [2, 2, 2])
 
     def test_parse_unlimited_list(self):
-        zero_list = jg.List(0, jg.Atom(int, 1))
+        zero_list = jg.List('list', 0, jg.Atom('atom', int, 1))
         self.run_node_parse_complete_error(zero_list, [], 'unlimited_list_complete_grammar', None)
         self.run_node_parse_complete_error(zero_list, [1], 'unlimited_list_complete_grammar', None)
         self.run_node_parse_complete_error(zero_list, [1, 1, 1], 'unlimited_list_complete_grammar', None)
@@ -606,7 +607,7 @@ class JsonGrammarListNodeParseTestCase(JsonGrammarBaseTestCase):
         self.run_node_parse_complete_error(zero_list, [1, 2, 3], 'unlimited_list_complete_grammar', [None, 2, 3])
 
     def test_parse_list_minimal(self):
-        test_schema = jg.List(10, jg.Atom(int, default=1))
+        test_schema = jg.List('list', 10, jg.Atom('atom', int, default=1))
 
         # empty list
         self.run_node_parse(test_schema, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], None, None)
@@ -637,8 +638,8 @@ class JsonGrammarListNodeParseTestCase(JsonGrammarBaseTestCase):
 
 class JsonGrammarEnumNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_enum(self):
-        test_enum = jg.Enum(['foo', 'bar', 'baz'], None)
-        test_enum_default = jg.Enum(['foo', 'bar', 'baz'], 'bar')
+        test_enum = jg.Enum('enum', ['foo', 'bar', 'baz'], None)
+        test_enum_default = jg.Enum('enum', ['foo', 'bar', 'baz'], 'bar')
 
         # enum is right type, right value
         for enum_value in test_enum.base:
@@ -658,32 +659,32 @@ class JsonGrammarEnumNodeParseTestCase(JsonGrammarBaseTestCase):
 class JsonGrammarAtomNodeParseTestCase(JsonGrammarBaseTestCase):
     def test_parse_atom_errors(self):
         # Atom has both default and value
-        test_schema = jg.Atom(str, value='123')
+        test_schema = jg.Atom('atom', str, value='123')
         test_schema.default = '456'
         self.run_node_parse_error(test_schema, '3', 'both_value_default')
 
         # Atom is wrong type
-        test_schema = jg.Atom(str, value='blah')
+        test_schema = jg.Atom('atom', str, value='blah')
         self.run_node_parse_error(test_schema, 3, 'atom_wrong_type')
 
     def test_parse_atom(self):
-        test_schema = jg.Atom(int, value=3)
+        test_schema = jg.Atom('atom', int, value=3)
         self.run_node_parse(test_schema, 3, None, None)
         self.run_node_parse_error(test_schema, 4, 'atom_wrong_value')
 
-        test_schema = jg.Atom(int, value=lambda elem, ctxt, lp: 3)
+        test_schema = jg.Atom('atom', int, value=lambda elem, ctxt, lp: 3)
         self.run_node_parse(test_schema, 3, None, None)
         self.run_node_parse_error(test_schema, 4, 'atom_wrong_value')
 
         # Now test defaults
         # Atom is right type, default value
-        test_schema = jg.Atom(int, 3)
+        test_schema = jg.Atom('atom', int, 3)
         self.run_node_parse(test_schema, 3, None, None)
         # Atom has right type not default value
         self.run_node_parse(test_schema, 4, 4, 4)
 
         # Atom is right type, default value via function
-        test_schema = jg.Atom(int, lambda elem, ctxt, lp: 3)
+        test_schema = jg.Atom('atom', int, lambda elem, ctxt, lp: 3)
         self.run_node_parse(test_schema, 3, None, None)
 
         # Atom is right type but wrong value via function
@@ -693,9 +694,9 @@ class JsonGrammarAtomNodeParseTestCase(JsonGrammarBaseTestCase):
 class JsonGrammarDictNodeGenTestCase(JsonGrammarBaseTestCase):
     def test_gen_dict_value(self):
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
-                               jg.Dict.make_key('b', jg.Atom(int, value=2)),
-                               jg.Dict.make_key('c', jg.Atom(int, value=3))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, value=2)),
+                               jg.Dict.make_key('c', jg.Atom('atom', int, value=3))])
         test_result = {'a': 1, 'b': 2, 'c': 3}
         self.run_node_gen_error(test_schema, 3, 'type_not_dict')
         # Test dict is None
@@ -711,10 +712,10 @@ class JsonGrammarDictNodeGenTestCase(JsonGrammarBaseTestCase):
 
     def test_gen_dict_default(self):
         test_schema = jg.Dict('test',
-                              [jg.Dict.make_key('a', jg.Atom(int, 1)),
-                               jg.Dict.make_key('b', jg.Atom(int, 1)),
-                               jg.Dict.make_key('c', jg.Atom(int, 1)),
-                               jg.Dict.make_key('d', jg.Atom(int, 1))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, 1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, 1)),
+                               jg.Dict.make_key('c', jg.Atom('atom', int, 1)),
+                               jg.Dict.make_key('d', jg.Atom('atom', int, 1))])
 
         # Test that None produces None
         self.run_node_gen(test_schema, None, {'a': 1, 'b': 1, 'c': 1, 'd': 1}, None)
@@ -741,27 +742,27 @@ class JsonGrammarDictNodeGenTestCase(JsonGrammarBaseTestCase):
         # Test ordering of keys, they are added in order of appearance
         # Test value function: None as model produces appropriate value
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, value=1)),
-                               jg.Dict.make_key('b', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a']))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, value=1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['a']))])
         self.run_node_gen(test_schema, None, {'a': 1, 'b': 1}, {'a': 1, 'b': 1})
 
         # Test value function: None as model, improper ordering fails
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['b'])),
-                               jg.Dict.make_key('b', jg.Atom(int, value=1))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['b'])),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, value=1))])
         self.run_node_gen_error(test_schema, None, 'b', exception=KeyError)
 
         # Test default function:
         # None as model produces appropriate entry
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, default=1)),
-                               jg.Dict.make_key('b', jg.Atom(int, default=lambda elem, ctxt, lp: ctxt['a']))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, default=1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, default=lambda elem, ctxt, lp: ctxt['a']))])
         self.run_node_gen(test_schema, None, {'a': 1, 'b': 1}, None)
 
         #  Non default as model produces appropriate entry
         test_schema = jg.Dict('foo',
-                              [jg.Dict.make_key('a', jg.Atom(int, default=1)),
-                               jg.Dict.make_key('b', jg.Atom(int, default=lambda elem, ctxt, lp: ctxt['a']))])
+                              [jg.Dict.make_key('a', jg.Atom('atom', int, default=1)),
+                               jg.Dict.make_key('b', jg.Atom('atom', int, default=lambda elem, ctxt, lp: ctxt['a']))])
         self.run_node_gen(test_schema, {'a': 2}, {'a': 2, 'b': 2}, {'a': 2})
         self.run_node_gen(test_schema, {'b': 2}, {'a': 1, 'b': 2}, {'b': 2})
 
@@ -769,11 +770,11 @@ class JsonGrammarDictNodeGenTestCase(JsonGrammarBaseTestCase):
 class JsonGrammarSwitchDictNodeGenTestCase(JsonGrammarBaseTestCase):
 
     def test_gen_switch_dict(self):
-        test_case_keys = {'a': [jg.SwitchDict.make_key('d', jg.Atom(int, 1))],
-                          'b': [jg.SwitchDict.make_key('e', jg.Atom(int, 1))],
-                          'c': [jg.SwitchDict.make_key('f', jg.Atom(int, 1))]}
-        test_enum = jg.Enum(["a", "b", "c"], None)
-        test_enum_default = jg.Enum(["a", "b", "c"], "a")
+        test_case_keys = {'a': [jg.SwitchDict.make_key('d', jg.Atom('atom', int, 1))],
+                          'b': [jg.SwitchDict.make_key('e', jg.Atom('atom', int, 1))],
+                          'c': [jg.SwitchDict.make_key('f', jg.Atom('atom', int, 1))]}
+        test_enum = jg.Enum('enum', ["a", "b", "c"], None)
+        test_enum_default = jg.Enum('enum', ["a", "b", "c"], "a")
         test_switch_dict_schema = jg.SwitchDict('test',
                                                 jg.SwitchDict.make_key('switch', test_enum_default),
                                                 test_case_keys)
@@ -816,30 +817,36 @@ class JsonGrammarSwitchDictNodeGenTestCase(JsonGrammarBaseTestCase):
         #  None as model produces appropriate entry
         #  Non default as model produces appropriate entry
         # Must test ordering where keys added to context
-        test_switch_key = jg.SwitchDict.make_key('switch', jg.Enum(["a", "b"], "a"))
-        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, value=1)),
-                                jg.SwitchDict.make_key('a2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a1']))],
-                          'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, value=1)),
-                                jg.SwitchDict.make_key('b2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
+        test_switch_key = jg.SwitchDict.make_key('switch', jg.Enum('enum', ["a", "b"], "a"))
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, value=1)),
+                                jg.SwitchDict.make_key(
+                                    'a2',
+                                    jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['a1']))],
+                          'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, value=1)),
+                                jg.SwitchDict.make_key(
+                                    'b2',
+                                    jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
         test_schema = jg.SwitchDict('test', test_switch_key, test_case_keys)
         # Test value function: None as model produces appropriate value
         self.run_node_gen(test_schema, None, {'switch': 'a', 'a1': 1, 'a2': 1}, {'a1': 1, 'a2': 1})
 
         # Test value function: None as model, improper ordering fails
         test_case_keys = {'a': [jg.SwitchDict.make_key('a1',
-                                                       jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['a2'])),
-                                jg.SwitchDict.make_key('a2', jg.Atom(int, value=1))],
-                          'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, value=1)),
-                                jg.SwitchDict.make_key('b2', jg.Atom(int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
+                                                       jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['a2'])),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, value=1))],
+                          'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, value=1)),
+                                jg.SwitchDict.make_key(
+                                    'b2',
+                                    jg.Atom('atom', int, value=lambda elem, ctxt, lp: ctxt['b1']))]}
         test_schema = jg.SwitchDict('test', test_switch_key, test_case_keys)
         self.run_node_gen_error(test_schema, None, 'a2', exception=KeyError)
 
         # Test default function:
         #  None as model produces appropriate entry
-        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom(int, 1)),
-                                jg.SwitchDict.make_key('a2', jg.Atom(int, lambda elem, ctxt, lp: ctxt['a1']))],
-                          'b': [jg.SwitchDict.make_key('b1', jg.Atom(int, 1)),
-                                jg.SwitchDict.make_key('b2', jg.Atom(int, lambda elem, ctxt, lp: ctxt['b1']))]}
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, lambda elem, ctxt, lp: ctxt['a1']))],
+                          'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, lambda elem, ctxt, lp: ctxt['b1']))]}
         test_schema = jg.SwitchDict('test', test_switch_key, test_case_keys)
         self.run_node_gen(test_schema, None, {'switch': 'a', 'a1': 1, 'a2': 1}, None)
 
@@ -862,12 +869,12 @@ class JsonGrammarSwitchDictNodeGenTestCase(JsonGrammarBaseTestCase):
 
 class JsonGrammarListNodeGenTestCase(JsonGrammarBaseTestCase):
     def test_list(self):
-        test_value_schema = jg.List(3, jg.Atom(int, value=1))
-        test_unlimited_value_schema = jg.List(0, jg.Atom(int, value=1))
-        test_value_fn_schema = jg.List(3, jg.Atom(int, value=lambda elem, ctxt, lp: lp[-1] * lp[-2]))
-        test_default_schema = jg.List(3, jg.Atom(int, 1))
-        test_unlimited_default_schema = jg.List(0, jg.Atom(int, 1))
-        test_default_fn_schema = jg.List(3, jg.Atom(int, lambda elem, ctxt, lp: lp[-1] * lp[-2]))
+        test_value_schema = jg.List('list', 3, jg.Atom('atom', int, value=1))
+        test_unlimited_value_schema = jg.List('list', 0, jg.Atom('atom', int, value=1))
+        test_value_fn_schema = jg.List('list', 3, jg.Atom('atom', int, value=lambda elem, ctxt, lp: lp[-1] * lp[-2]))
+        test_default_schema = jg.List('list', 3, jg.Atom('atom', int, 1))
+        test_unlimited_default_schema = jg.List('list', 0, jg.Atom('atom', int, 1))
+        test_default_fn_schema = jg.List('list', 3, jg.Atom('atom', int, lambda elem, ctxt, lp: lp[-1] * lp[-2]))
 
         # Test list is wrong length
         self.run_node_gen_error(test_value_schema, 3, 'model_schema_mismatch')
@@ -899,7 +906,7 @@ class JsonGrammarListNodeGenTestCase(JsonGrammarBaseTestCase):
         self.run_node_gen(test_default_fn_schema, [0, 2, 4], [0, 2, 4], None, list_pos=[2])
 
     def test_gen_list_minimal(self):
-        test_schema = jg.List(10, jg.Atom(int, default=1))
+        test_schema = jg.List('list', 10, jg.Atom('atom', int, default=1))
         # Test a full list
         self.run_node_gen(test_schema, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                           [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
@@ -928,8 +935,8 @@ class JsonGrammarListNodeGenTestCase(JsonGrammarBaseTestCase):
 
 class JsonGrammarEnumNodeGenTestCase(JsonGrammarBaseTestCase):
     def test_enum(self):
-        test_enum = jg.Enum(["one", "two", "three", "four"], None)
-        test_default_enum = jg.Enum(["one", "two", "three", "four"], default="one")
+        test_enum = jg.Enum('enum', ["one", "two", "three", "four"], None)
+        test_default_enum = jg.Enum('enum', ["one", "two", "three", "four"], default="one")
 
         # Enum, empty model with no enum default value
         self.run_node_gen_error(test_enum, None, 'enum_no_default')
@@ -950,15 +957,15 @@ class JsonGrammarEnumNodeGenTestCase(JsonGrammarBaseTestCase):
 class JsonGrammarAtomNodeGenTestCase(JsonGrammarBaseTestCase):
     def test_atom(self):
         # Value Atom, int, int from a function, string and bool
-        value_int_atom = jg.Atom(int, value=1)
-        value_int_fn_atom = jg.Atom(int, value=lambda elem, ctxt, lp: 1)
-        value_str_atom = jg.Atom(str, value="a")
-        value_bool_atom = jg.Atom(bool, value=True)
+        value_int_atom = jg.Atom('atom', int, value=1)
+        value_int_fn_atom = jg.Atom('atom', int, value=lambda elem, ctxt, lp: 1)
+        value_str_atom = jg.Atom('atom', str, value="a")
+        value_bool_atom = jg.Atom('atom', bool, value=True)
 
-        default_int_atom = jg.Atom(int, 1)
-        default_int_fn_atom = jg.Atom(int, lambda elem, ctxt, lp: 1)
-        default_str_atom = jg.Atom(str, "a")
-        default_bool_atom = jg.Atom(bool, True)
+        default_int_atom = jg.Atom('atom', int, 1)
+        default_int_fn_atom = jg.Atom('atom', int, lambda elem, ctxt, lp: 1)
+        default_str_atom = jg.Atom('atom', str, "a")
+        default_bool_atom = jg.Atom('atom', bool, True)
 
         # Val atom w/ incorrect value
         self.run_node_gen_error(value_int_atom, 2, 'model_schema_mismatch')
@@ -1008,6 +1015,16 @@ class JsonGrammarAtomNodeGenTestCase(JsonGrammarBaseTestCase):
         self.run_node_gen(default_int_fn_atom, test_model, 1, None)
         self.run_node_gen(default_str_atom, test_model, 'a', None)
         self.run_node_gen(default_bool_atom, test_model, True, None)
+
+
+class JsonGrammarPrintTestCase(unittest.TestCase):
+    def test_print(self):
+        grammar = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
+        result = grammar.print()
+        self.assertTrue(isinstance(result, str))
+        grammar = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema)
+        result = grammar.print()
+        self.assertTrue(isinstance(result, str))
 
 
 class IntuitiveMessageCatalogTestCase(unittest.TestCase):
@@ -1470,35 +1487,6 @@ class IntuitiveFromBaseTestCase(unittest.TestCase):
     def test_intuitive_midi_channel(self):
         self.assertEqual(True, True)
 
-    def test_intuitive_roadmap_pages(self):
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_pages(1))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_pages(2))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_pages(3))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_pages(4))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_pages(5))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_pages(6))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_pages(7))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_pages(8))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_pages(9))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_pages(10))
-        self.assertEqual(3, MC6Pro_intuitive.MC6ProIntuitive.number_pages(11))
-        self.assertEqual(3, MC6Pro_intuitive.MC6ProIntuitive.number_pages(12))
-        self.assertEqual(3, MC6Pro_intuitive.MC6ProIntuitive.number_pages(13))
-        self.assertEqual(3, MC6Pro_intuitive.MC6ProIntuitive.number_pages(14))
-        self.assertEqual(4, MC6Pro_intuitive.MC6ProIntuitive.number_pages(15))
-        self.assertEqual(4, MC6Pro_intuitive.MC6ProIntuitive.number_pages(16))
-
-    def test_intuitive_roadmap_banks(self):
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_banks(1))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_banks(2))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_banks(3))
-        self.assertEqual(1, MC6Pro_intuitive.MC6ProIntuitive.number_banks(4))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_banks(5))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_banks(6))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_banks(7))
-        self.assertEqual(2, MC6Pro_intuitive.MC6ProIntuitive.number_banks(8))
-        self.assertEqual(3, MC6Pro_intuitive.MC6ProIntuitive.number_banks(9))
-
 
 class IntuitiveToBaseTestCase(unittest.TestCase):
     # No tests written yet
@@ -1650,7 +1638,7 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
 
     def test_demo(self):
         base_conf = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
-        base_file = jg.JsonGrammarFile('tmp/Demo.json')
+        base_file = jg.JsonGrammarFile('tmp/Demo_test.json')
         intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
         intuitive_file = jg.JsonGrammarFile('Configs/Demo.yaml')
         intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
@@ -1660,7 +1648,198 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
 
 
 class MC6ProNavigatorTestCase(unittest.TestCase):
-    navigator_banks = [
+    navigator_banks_one_button = [
+        ["Home",
+         ["Bank 1", "Bank 2", "Bank 3", "Bank 4", "Bank 5", "Next",
+          "Bank 6", "Bank 7", "Bank 8", "Bank 9", "Bank 10", "Previous/Next",
+          "Bank 11", "Bank 12", "Bank 13", "Bank 14", "Bank 15", "Previous/Next",
+          "Bank 16", "Bank 17", "Bank 18", "Bank 19", "Bank 20", "Previous/Next"]
+         ],
+        ["Home (2)",
+         ["Bank 21", "Bank 22", "Bank 23", "Bank 24", "Bank 25", "Previous/Next",
+          "Bank 26", "Bank 27", "Bank 28", "Bank 29", "Bank 30", "Previous"]
+         ],
+        ["Bank 1",
+         ['', '', '', '', '', 'Home']
+         ],
+        ["Bank 2",
+         ['Preset 1', '', '', '', '', 'Home']
+         ],
+        ["Bank 3",
+         ['Preset 1', 'Preset 2', '', '', '', 'Home']
+         ],
+        ["Bank 4",
+         ['Preset 1', 'Preset 2', 'Preset 3', '', '', 'Home']
+         ],
+        ["Bank 5",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', '', 'Home']
+         ],
+        ["Bank 6",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home']
+         ],
+        ["Bank 7",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', '', '', '', '', 'Previous']
+         ],
+        ["Bank 8",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', '', '', '', 'Previous']
+         ],
+        ["Bank 9",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', '', '', 'Previous']
+         ],
+        ["Bank 10",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', '', 'Previous']
+         ],
+        ["Bank 11",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous']
+         ],
+        ["Bank 12",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', '', '', '', '', 'Previous']
+         ],
+        ["Bank 13",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', '', '', '', 'Previous']
+         ],
+        ["Bank 14",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', '', '', 'Previous']
+         ],
+        ["Bank 15",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', '', 'Previous']
+         ],
+        ["Bank 16",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous']
+         ],
+        ["Bank 17",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', '', '', '', '', 'Previous']
+         ],
+        ["Bank 18",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', '', '', '', 'Previous']
+         ],
+        ["Bank 19",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', '', '', 'Previous']
+         ],
+        ["Bank 20",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', '', 'Previous']
+         ],
+        ["Bank 21",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous']
+         ],
+        ["Bank 22",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 22 (2)",
+         ['Preset 21', '', '', '', '', 'Previous']
+         ],
+        ["Bank 23",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 23 (2)",
+         ['Preset 21', 'Preset 22', '', '', '', 'Previous']
+         ],
+        ["Bank 24",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 24 (2)",
+         ['Preset 21', 'Preset 22', 'Preset 23', '', '', 'Previous']
+         ],
+        ["Bank 25",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 25 (2)",
+         ['Preset 21', 'Preset 22', 'Preset 23', 'Preset 24', '', 'Previous']
+         ],
+        ["Bank 26",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 26 (2)",
+         ['Preset 21', 'Preset 22', 'Preset 23', 'Preset 24', 'Preset 25', 'Previous']
+         ],
+        ["Bank 27",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 27 (2)",
+         ['Preset 21', 'Preset 22', 'Preset 23', 'Preset 24', 'Preset 25', 'Previous/Next',
+          'Preset 26', '', '', '', '', 'Previous']
+         ],
+        ["Bank 28",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 28 (2)",
+         ['Preset 21', 'Preset 22', 'Preset 23', 'Preset 24', 'Preset 25', 'Previous/Next',
+          'Preset 26', 'Preset 27', '', '', '', 'Previous']
+         ],
+        ["Bank 29",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 29 (2)",
+         ['Preset 21', 'Preset 22', 'Preset 23', 'Preset 24', 'Preset 25', 'Previous/Next',
+          'Preset 26', 'Preset 27', 'Preset 28', '', '', 'Previous']
+         ],
+        ["Bank 30",
+         ['Preset 1', 'Preset 2', 'Preset 3', 'Preset 4', 'Preset 5', 'Home/Next',
+          'Preset 6', 'Preset 7', 'Preset 8', 'Preset 9', 'Preset 10', 'Previous/Next',
+          'Preset 11', 'Preset 12', 'Preset 13', 'Preset 14', 'Preset 15', 'Previous/Next',
+          'Preset 16', 'Preset 17', 'Preset 18', 'Preset 19', 'Preset 20', 'Previous/Next']
+         ],
+        ["Bank 30 (2)",
+         ['Preset 21', 'Preset 22', 'Preset 23', 'Preset 24', 'Preset 25', 'Previous/Next',
+          'Preset 26', 'Preset 27', 'Preset 28', 'Preset 29', '', 'Previous']
+         ]
+    ]
+
+    navigator_banks_two_button = [
         ["Home",
          ["Bank 1", "Bank 2", "Bank 3", "Bank 4", "Bank 5", "Next",
           "Bank 6", "Bank 7", "Previous", "Bank 8", "Bank 9", "Next",
@@ -1873,22 +2052,29 @@ class MC6ProNavigatorTestCase(unittest.TestCase):
          ]
     ]
 
-    def test_navigator(self):
+    def check_navigator(self, mode, navigator_banks):
         intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
         intuitive_file = jg.JsonGrammarFile(filename='Configs/NavigatorTest.json')
-        intuitive_model = intuitive_conf.parse_config(intuitive_file.load())
-        base_model = intuitive_model.to_base()
+        intuitive_json = intuitive_file.load()
+        intuitive_model = intuitive_conf.parse_config(intuitive_json)
+        base_model = intuitive_model.to_base(mode)
         self.assertIsNotNone(base_model)
         for pos, bank in enumerate(base_model.banks):
-            if pos < len(self.navigator_banks):
-                self.assertEqual(bank.name, self.navigator_banks[pos][0])
+            if pos < len(navigator_banks):
+                self.assertEqual(bank.name, navigator_banks[pos][0])
                 for pos2, preset in enumerate(bank.presets):
-                    if pos2 < len(self.navigator_banks[pos][1]):
-                        self.assertEqual(preset.short_name, self.navigator_banks[pos][1][pos2])
+                    if pos2 < len(navigator_banks[pos][1]):
+                        self.assertEqual(preset.short_name, navigator_banks[pos][1][pos2])
                     else:
                         self.assertIsNone(preset)
             else:
                 self.assertIsNone(bank)
+
+    def test_navigator_two_button(self):
+        self.check_navigator("Two Button", self.navigator_banks_two_button)
+
+    def test_navigator_one_button(self):
+        self.check_navigator("One Button", self.navigator_banks_one_button)
 
 
 if __name__ == '__main__':

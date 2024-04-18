@@ -1,5 +1,14 @@
 
 # Change Log
+## [0.1.2] - 2024-04-17
+- Added names to all grammar nodes
+- Added print_grammar program
+- Refactored navigator mode, no functional change
+- Improved error handling
+- Made Jump Bank message have page default to 0
+- Added "One Button" mode to Navigator Mode
+- Added Navigator Mode override to mc6pro.py for testing
+
 ## [0.1.1] - 2024-03-29
   
 - Added Toggle Group

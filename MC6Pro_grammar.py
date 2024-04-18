@@ -201,44 +201,49 @@ def midi_message_cleanup(message, _ctxt, _lp):
 
 
 msg_array_schema = \
-    jg.Dict('msgArray',
-            [jg.Dict.make_key('data', jg.List(18, jg.Atom(int, 0), var='msg_array_data')),
-             jg.Dict.make_key('m', jg.Atom(int, value=jg.identity)),
+    jg.Dict('Message Array',
+            [jg.Dict.make_key('data', jg.List('Data List', 18, jg.Atom('Data', int, 0), var='msg_array_data')),
+             jg.Dict.make_key('m', jg.Atom('Message Number', int, value=jg.identity)),
              # c is channel
-             jg.Dict.make_key('c', jg.Atom(int, 1, var='channel')),
+             jg.Dict.make_key('c', jg.Atom('Channel', int, 1, var='channel')),
              # t is the message type (CC or PC)
-             jg.Dict.make_key('t', jg.Atom(int, 0, var='type')),
+             jg.Dict.make_key('t', jg.Atom('Type', int, 0, var='type')),
              # a is the trigger
-             jg.Dict.make_key('a', jg.Atom(int, 0, var='trigger')),
+             jg.Dict.make_key('a', jg.Atom('Trigger', int, 0, var='trigger')),
              # tg is toggle group
-             jg.Dict.make_key('tg', jg.Atom(int, 2, var='toggle_group')),
-             jg.Dict.make_key('mi', jg.Atom(str, value=''))],
+             jg.Dict.make_key('tg', jg.Atom('Toggle Group', int, 2, var='toggle_group')),
+             jg.Dict.make_key('mi', jg.Atom('mi', str, value=''))],
             model=MidiMessage, cleanup=midi_message_cleanup)
 
 preset_array_schema = \
-    jg.Dict('presetArray',
+    jg.Dict('Preset Array',
             [jg.Dict.make_key('presetNum', jg.identity_atom),
              jg.Dict.make_key('bankNum', jg.identity2_atom),
              jg.Dict.make_key('isExp', jg.false_atom),
-             jg.Dict.make_key('shortName', jg.Atom(str, 'EMPTY', var='short_name')),
-             jg.Dict.make_key('toggleName', jg.Atom(str, '', var='toggle_name')),
-             jg.Dict.make_key('longName', jg.Atom(str, '', var='long_name')),
+             jg.Dict.make_key('shortName', jg.Atom('Short Name', str, 'EMPTY', var='short_name')),
+             jg.Dict.make_key('toggleName', jg.Atom('Toggle Name', str, '', var='toggle_name')),
+             jg.Dict.make_key('longName', jg.Atom('Long Name', str, '', var='long_name')),
              jg.Dict.make_key('shiftName', jg.empty_atom),
-             jg.Dict.make_key('toToggle', jg.Atom(bool, False, var='to_toggle')),
+             jg.Dict.make_key('toToggle', jg.Atom('To Toggle', bool, False, var='to_toggle')),
              jg.Dict.make_key('toBlink', jg.false_atom),
              jg.Dict.make_key('toMsgScroll', jg.false_atom),
-             jg.Dict.make_key('toggleGroup', jg.Atom(int, 0, var='toggle_group')),
+             jg.Dict.make_key('toggleGroup', jg.Atom('Toggle Group', int, 0, var='toggle_group')),
              # the led is the strip at the bottom (top?) of the window
-             jg.Dict.make_key('ledColor', jg.Atom(int, 0, var='strip_color')),
-             jg.Dict.make_key('ledToggleColor', jg.Atom(int, 0, var='strip_toggle_color')),
+             jg.Dict.make_key('ledColor', jg.Atom('Strip Color', int, 0, var='strip_color')),
+             jg.Dict.make_key('ledToggleColor', jg.Atom('Strip Toggle Color', int, 0,
+                                                        var='strip_toggle_color')),
              jg.Dict.make_key('ledShiftColor', jg.zero_atom),
-             jg.Dict.make_key('nameColor', jg.Atom(int, 7, var='name_color')),
-             jg.Dict.make_key('nameToggleColor', jg.Atom(int, 7, var='name_toggle_color')),
-             jg.Dict.make_key('nameShiftColor', jg.Atom(int, value=7)),
-             jg.Dict.make_key('backgroundColor', jg.Atom(int, 0, var='background_color')),
-             jg.Dict.make_key('toggleBackgroundColor', jg.Atom(int, 0, var='background_toggle_color')),
+             jg.Dict.make_key('nameColor', jg.Atom('Name Color', int, 7, var='name_color')),
+             jg.Dict.make_key('nameToggleColor', jg.Atom('Name Toggle Color', int, 7,
+                                                         var='name_toggle_color')),
+             jg.Dict.make_key('nameShiftColor', jg.Atom('Shifted Name Color', int, value=7)),
+             jg.Dict.make_key('backgroundColor', jg.Atom('Background Color', int, 0,
+                                                         var='background_color')),
+             jg.Dict.make_key('toggleBackgroundColor', jg.Atom('Background toggle Color', int, 0,
+                                                               var='background_toggle_color')),
              jg.Dict.make_key('shiftBackgroundColor', jg.zero_atom),
-             jg.Dict.make_key('msgArray', jg.List(32, msg_array_schema, var='messages'))],
+             jg.Dict.make_key('msgArray', jg.List('Message List', 32, msg_array_schema,
+                                                  var='messages'))],
             model=Preset)
 
 exp_preset_array_schema = \
@@ -246,7 +251,7 @@ exp_preset_array_schema = \
             [jg.Dict.make_key('presetNum', jg.identity_atom),
              jg.Dict.make_key('bankNum', jg.identity2_atom),
              jg.Dict.make_key('isExp', jg.true_atom),
-             jg.Dict.make_key('shortName', jg.Atom(str, value='EMPTY')),
+             jg.Dict.make_key('shortName', jg.Atom('Short Name', str, value='EMPTY')),
              jg.Dict.make_key('toggleName', jg.empty_atom),
              jg.Dict.make_key('longName', jg.empty_atom),
              jg.Dict.make_key('shiftName', jg.empty_atom),
@@ -257,41 +262,41 @@ exp_preset_array_schema = \
              jg.Dict.make_key('ledColor', jg.zero_atom),
              jg.Dict.make_key('ledToggleColor', jg.zero_atom),
              jg.Dict.make_key('ledShiftColor', jg.zero_atom),
-             jg.Dict.make_key('nameColor', jg.Atom(int, value=7)),
-             jg.Dict.make_key('nameToggleColor', jg.Atom(int, value=7)),
-             jg.Dict.make_key('nameShiftColor', jg.Atom(int, value=7)),
+             jg.Dict.make_key('nameColor', jg.Atom('Name Color', int, value=7)),
+             jg.Dict.make_key('nameToggleColor', jg.Atom('Name Toggle Color', int, value=7)),
+             jg.Dict.make_key('nameShiftColor', jg.Atom('Name Shift Color', int, value=7)),
              jg.Dict.make_key('backgroundColor', jg.zero_atom),
              jg.Dict.make_key('toggleBackgroundColor', jg.zero_atom),
              jg.Dict.make_key('shiftBackgroundColor', jg.zero_atom),
-             jg.Dict.make_key('msgArray', jg.List(32, msg_array_schema))])
+             jg.Dict.make_key('msgArray', jg.List('Message List', 32, msg_array_schema))])
 
 
 bank_array_schema = \
     jg.Dict(
         'bankArray',
         [jg.Dict.make_key('bankNumber', jg.identity_atom),
-         jg.Dict.make_key('bankName', jg.Atom(str, '', var='name')),
-         jg.Dict.make_key('bankClearToggle', jg.Atom(bool, False, var='clear_toggle')),
-         jg.Dict.make_key('bankMsgArray', jg.List(32, msg_array_schema, var='messages')),
-         jg.Dict.make_key('presetArray', jg.List(24, preset_array_schema, var='presets')),
-         jg.Dict.make_key('expPresetArray', jg.List(4, exp_preset_array_schema)),
-         jg.Dict.make_key('bankDescription', jg.Atom(str, '', var='description')),
-         jg.Dict.make_key('toDisplay', jg.Atom(bool, False, var='to_display')),
-         jg.Dict.make_key('backgroundColor', jg.Atom(int, 127, var='background_color')),
-         jg.Dict.make_key('textColor', jg.Atom(int, 127, var='text_color')),
+         jg.Dict.make_key('bankName', jg.Atom('Bank Name', str, '', var='name')),
+         jg.Dict.make_key('bankClearToggle', jg.Atom('Bank Clear Toggle', bool, False, var='clear_toggle')),
+         jg.Dict.make_key('bankMsgArray', jg.List('Bank Message List', 32, msg_array_schema, var='messages')),
+         jg.Dict.make_key('presetArray', jg.List('Bank Preset List', 24, preset_array_schema, var='presets')),
+         jg.Dict.make_key('expPresetArray', jg.List('Bank Expression Preset List', 4, exp_preset_array_schema)),
+         jg.Dict.make_key('bankDescription', jg.Atom('Bank Description', str, '', var='description')),
+         jg.Dict.make_key('toDisplay', jg.Atom('To Display', bool, False, var='to_display')),
+         jg.Dict.make_key('backgroundColor', jg.Atom('Background Color', int, 127, var='background_color')),
+         jg.Dict.make_key('textColor', jg.Atom('Text Color', int, 127, var='text_color')),
          jg.Dict.make_key('isColorEnabled', jg.true_atom)],
         model=Bank)
 
 omniport_schema = \
     jg.Dict(
         'omniport',
-        [jg.Dict.make_key('type', jg.Atom(str, value='omniport_input')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='omniport_input')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
                  'omniport_data',
                  [jg.Dict.make_key('portNum', jg.identity_atom),
-                  jg.Dict.make_key('type', jg.Atom(int, value=1)),
+                  jg.Dict.make_key('type', jg.Atom('Type', int, value=1)),
                   jg.Dict.make_key('fixedSwTip', jg.zero_atom),
                   jg.Dict.make_key('fixedSwRing', jg.zero_atom),
                   jg.Dict.make_key('fixedSwTipRing', jg.zero_atom),
@@ -305,8 +310,8 @@ omniport_schema = \
 omniports_schema = \
     jg.Dict(
         'omniports',
-        [jg.Dict.make_key('type', jg.Atom(str, value='omniport_all')),
-         jg.Dict.make_key('data', jg.List(4, omniport_schema))])
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='omniport_all')),
+         jg.Dict.make_key('data', jg.List('Data List', 4, omniport_schema))])
 
 usb_host_matrix_schema = \
     jg.Dict('usbHost',
@@ -341,7 +346,7 @@ mm35_device_matrix_schema = \
 midi_thru_matrix_schema = \
     jg.Dict(
         'midi_thru_matrix',
-        [jg.Dict.make_key('type', jg.Atom(str, value='midiThruMatrix')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='midiThruMatrix')),
          jg.Dict.make_key('data',
                           jg.Dict('midi_thru_matrix_data',
                                   [jg.Dict.make_key('usbHost', usb_host_matrix_schema),
@@ -362,7 +367,7 @@ def midi_clock_output_ports(elem, _ctxt, _lp):
 general_configuration_schema = \
     jg.Dict(
         'general_configurations',
-        [jg.Dict.make_key('type', jg.Atom(str, value='general_configurations')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='general_configurations')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
@@ -374,31 +379,32 @@ general_configuration_schema = \
                   jg.Dict.make_key('ignoreMidiClock', jg.false_atom),
                   jg.Dict.make_key('crossMidiThru', jg.false_atom),
                   jg.Dict.make_key('savePresetToggle', jg.false_atom),
-                  jg.Dict.make_key('midiChannel', jg.Atom(int, 0, var='midi_channel')),
-                  jg.Dict.make_key('switchSensitivity', jg.Atom(int, value=2)),
+                  jg.Dict.make_key('midiChannel', jg.Atom('MIDI Channel', int, 0, var='midi_channel')),
+                  jg.Dict.make_key('switchSensitivity', jg.Atom('Switch Sensitivity', int, value=2)),
                   jg.Dict.make_key('bankChangeDelayTime', jg.zero_atom),
-                  jg.Dict.make_key('bankChangeDisplayTime', jg.Atom(int, value=60)),
-                  jg.Dict.make_key('longPressTime', jg.Atom(int, value=12)),
+                  jg.Dict.make_key('bankChangeDisplayTime', jg.Atom('Bank Change Display Time', int, value=60)),
+                  jg.Dict.make_key('longPressTime', jg.Atom('Long Press Time', int, value=12)),
                   jg.Dict.make_key('loadLastBankOnStartup', jg.false_atom),
-                  jg.Dict.make_key('numMidiCable', jg.Atom(int, value=1)),
+                  jg.Dict.make_key('numMidiCable', jg.Atom('Num Midi Cable', int, value=1)),
                   jg.Dict.make_key('midiSendDelay', jg.zero_atom),
-                  jg.Dict.make_key('presetMaxFontSize', jg.Atom(int, value=3)),
+                  jg.Dict.make_key('presetMaxFontSize', jg.Atom('Preset Max Font Size', int, value=3)),
                   jg.Dict.make_key('showPresetLabels', jg.false_atom),
                   jg.Dict.make_key('midiThruMatrix', midi_thru_matrix_schema),
                   jg.Dict.make_key('screenSaverTime', jg.zero_atom),
-                  jg.Dict.make_key('midiClockOutputPorts', jg.Atom(int, value=midi_clock_output_ports)),
+                  jg.Dict.make_key('midiClockOutputPorts', jg.Atom('MIDI Clock Output Ports', int,
+                                                                   value=midi_clock_output_ports)),
                   jg.Dict.make_key('rpA', jg.zero_atom),
                   jg.Dict.make_key('rpB', jg.zero_atom)]))])
 
 waveform_engine_schema = \
     jg.Dict(
         'waveform_engine',
-        [jg.Dict.make_key('type', jg.Atom(str, value='waveform_engine')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='waveform_engine')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
                  'waveform_engine_data',
-                 [jg.Dict.make_key('max', jg.Atom(int, value=127)),
+                 [jg.Dict.make_key('max', jg.Atom('Max', int, value=127)),
                   jg.Dict.make_key('min', jg.zero_atom),
                   jg.Dict.make_key('num', jg.identity_atom),
                   jg.Dict.make_key('type', jg.zero_atom)]))])
@@ -406,8 +412,8 @@ waveform_engine_schema = \
 waveform_engines_schema = \
     jg.Dict(
         'waveform_engines',
-        [jg.Dict.make_key('type', jg.Atom(str, value='waveform_engines')),
-         jg.Dict.make_key('data', jg.List(8, waveform_engine_schema))])
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='waveform_engines')),
+         jg.Dict.make_key('data', jg.List('Data List', 8, waveform_engine_schema))])
 
 
 # Some slight randomness in the backup file
@@ -429,90 +435,90 @@ def sequencer_engine_arr_hack(elem, _ctxt, _lp):
 sequencer_engine_schema = \
     jg.Dict(
         'sequencer_engine',
-        [jg.Dict.make_key('type', jg.Atom(str, value='sequencer_engine')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='sequencer_engine')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
                  'sequencer_engine_data',
                  [jg.Dict.make_key('engineNum',
                                    jg.identity_atom),
-                  jg.Dict.make_key('len', jg.Atom(int, value=sequencer_engine_len_hack)),
+                  jg.Dict.make_key('len', jg.Atom('Length', int, value=sequencer_engine_len_hack)),
                   jg.Dict.make_key(
                       'arr',
-                      jg.List(16, jg.Atom(int, value=sequencer_engine_arr_hack)))]))])
+                      jg.List('Data List', 16, jg.Atom('Data Item', int, value=sequencer_engine_arr_hack)))]))])
 
 sequencer_engines_schema = \
     jg.Dict(
         'sequencer_engines',
-        [jg.Dict.make_key('type', jg.Atom(str, value='sequencer_engines')),
-         jg.Dict.make_key('data', jg.List(8, sequencer_engine_schema))])
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='sequencer_engines')),
+         jg.Dict.make_key('data', jg.List('Data List', 8, sequencer_engine_schema))])
 
 scroll_counter_schema = \
     jg.Dict(
         'scroll_counter',
-        [jg.Dict.make_key('type', jg.Atom(str, value='scroll_counter')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='scroll_counter')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
                  'scroll_counter_data',
                  [jg.Dict.make_key('index', jg.identity_atom),
                   jg.Dict.make_key('min', jg.zero_atom),
-                  jg.Dict.make_key('max', jg.Atom(int, value=127)),
+                  jg.Dict.make_key('max', jg.Atom('Max', int, value=127)),
                   jg.Dict.make_key('start', jg.zero_atom)]))])
 
 scroll_counters_schema = \
     jg.Dict(
         'scroll_counters',
-        [jg.Dict.make_key('type', jg.Atom(str, value='scroll_counters')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='scroll_counters')),
          jg.Dict.make_key(
-             'data', jg.List(16, scroll_counter_schema))])
+             'data', jg.List('Data List', 16, scroll_counter_schema))])
 
 midi_channel_schema = \
     jg.Dict(
         'midi_channel',
-        [jg.Dict.make_key('type', jg.Atom(str, value='midi_channel')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='midi_channel')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
                  'midi_channel_data',
-                 [jg.Dict.make_key('name', jg.Atom(str, '', var='name')),
-                  jg.Dict.make_key('channel', jg.Atom(int, value=jg.identity_plus_1)),
-                  jg.Dict.make_key('sendToPort', jg.Atom(int, value=2047)),
+                 [jg.Dict.make_key('name', jg.Atom('Name', str, '', var='name')),
+                  jg.Dict.make_key('channel', jg.Atom('Channel', int, value=jg.identity_plus_1)),
+                  jg.Dict.make_key('sendToPort', jg.Atom('Send To Port', int, value=2047)),
                   jg.Dict.make_key('remap', jg.zero_atom)]))],
         model=MidiChannel)
 
 midi_channels_schema = \
     jg.Dict(
         'midi_channels',
-        [jg.Dict.make_key('type', jg.Atom(str, value='midi_channels')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='midi_channels')),
          jg.Dict.make_key(
              'data',
-             jg.List(16, midi_channel_schema, var='midi_channels'))])
+             jg.List('Data List', 16, midi_channel_schema, var='midi_channels'))])
 
 bank_arrangement_item_schema = \
     jg.Dict(
         'bank_arrangement',
-        [jg.Dict.make_key('type', jg.Atom(str, value='bank_arrangement')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='bank_arrangement')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
                  'bank_arrangement_data',
                  [jg.Dict.make_key('bankNum', jg.identity_atom),
-                  jg.Dict.make_key('bankName', jg.Atom(str, '', var='name'))]))],
+                  jg.Dict.make_key('bankName', jg.Atom('Bank Name', str, '', var='name'))]))],
         model=BankArrangementItem)
 
 bank_arrangement_schema = \
     jg.Dict(
         'bank_arrangements',
-        [jg.Dict.make_key('type', jg.Atom(str, value='bank_arrangement')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='bank_arrangement')),
          jg.Dict.make_key('isActive', jg.false_atom),
          jg.Dict.make_key('numBanksActive', jg.zero_atom),
-         jg.Dict.make_key('data', jg.List(127, bank_arrangement_item_schema, var='bank_arrangement'))])
+         jg.Dict.make_key('data', jg.List('Data List', 127, bank_arrangement_item_schema, var='bank_arrangement'))])
 
 midi_event_schema = \
     jg.Dict(
         'midi_event',
-        [jg.Dict.make_key('type', jg.Atom(str, value='midi_event')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='midi_event')),
          jg.Dict.make_key(
              'data',
              jg.Dict(
@@ -532,13 +538,13 @@ midi_event_schema = \
 midi_events_schema = \
     jg.Dict(
         'midi_events',
-        [jg.Dict.make_key('type', jg.Atom(str, value='midi_events')),
-         jg.Dict.make_key('data', jg.List(16, midi_event_schema))])
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='midi_events')),
+         jg.Dict.make_key('data', jg.List('Data List', 16, midi_event_schema))])
 
 resistor_ladder_aux_data_schema = \
     jg.Dict(
         'resistor_ladder_aux_data',
-        [jg.Dict.make_key('type', jg.Atom(str, value='resistor_ladder_aux_switch')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='resistor_ladder_aux_switch')),
          jg.Dict.make_key('data', jg.Dict('resistor_switch',
                                           [jg.Dict.make_key('switchNumber', jg.identity_atom),
                                            jg.Dict.make_key('triggerValue', jg.zero_atom),
@@ -548,13 +554,13 @@ resistor_ladder_aux_data_schema = \
 
 resistor_ladder_aux_schema = \
     jg.Dict('resistor_ladder_aux',
-            [jg.Dict.make_key('type', jg.Atom(str, value='resistor_ladder_aux_switch_all')),
-             jg.Dict.make_key('data', jg.List(16, resistor_ladder_aux_data_schema))])
+            [jg.Dict.make_key('type', jg.Atom('Type', str, value='resistor_ladder_aux_switch_all')),
+             jg.Dict.make_key('data', jg.List('Data List', 16, resistor_ladder_aux_data_schema))])
 
 controller_settings_schema = \
     jg.Dict(
         'controller_settings',
-        [jg.Dict.make_key('type', jg.Atom(str, value='controller_settings_all')),
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='controller_settings_all')),
          jg.Dict.make_key(
              'data',
              jg.Dict('controller_settings_data',
@@ -576,16 +582,16 @@ def download_date(_elem, _ctxt, _lp):
 mc6pro_schema = \
     jg.Dict(
         'mc6pro',
-        [jg.Dict.make_key("schemaVersion", jg.Atom(int, value=1)),
-         jg.Dict.make_key("dumpType", jg.Atom(str, value='allBanks')),
-         jg.Dict.make_key("deviceModel", jg.Atom(int, value=6)),
-         jg.Dict.make_key("downloadDate", jg.Atom(str, download_date, var='download_date')),
-         jg.Dict.make_key("hash", jg.Atom(int, 0, var='hash')),
+        [jg.Dict.make_key("schemaVersion", jg.Atom('Schema Version', int, value=1)),
+         jg.Dict.make_key("dumpType", jg.Atom('Dump Type', str, value='allBanks')),
+         jg.Dict.make_key("deviceModel", jg.Atom('Device Model', int, value=6)),
+         jg.Dict.make_key("downloadDate", jg.Atom('Download Date', str, download_date, var='download_date')),
+         jg.Dict.make_key("hash", jg.Atom('Hash', int, 0, var='hash')),
          jg.Dict.make_key("description", jg.empty_atom),
          jg.Dict.make_key(
              "data",
              jg.Dict('data',
                      [jg.Dict.make_key('bankArray',
-                                       jg.List(128, bank_array_schema, var='banks')),
+                                       jg.List('Bank List', 128, bank_array_schema, var='banks')),
                       jg.Dict.make_key('controller_settings', controller_settings_schema)]))],
         model=MC6Pro)

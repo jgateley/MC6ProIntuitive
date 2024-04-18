@@ -1,5 +1,5 @@
 # Version, required
-version: 0.1.1
+version: 0.1.2
 # The MIDI channel assigned to the MC6Pro
 midi_channel: 3
 # The list of MIDI channels, the position in the list determines the channel number (1 based)
@@ -9,9 +9,9 @@ midi_channels:
 - name: MC6Pro
 - name: H9
 - name: Timeline
-- name: Looper
+- name: Aeros
 # Use navigator mode
-navigator: true
+navigator: One Button
 # Color schemas
 colors:
 - name: default
@@ -55,7 +55,12 @@ messages:
 - {channel: Timeline, name: Timeline Bank 1, type: CC, number: 0, value: 1}
 - {channel: Timeline, name: Timeline Easy Delay, type: PC, number: 100}
 - {channel: Timeline, name: Timeline Heavy Delay, type: PC, number: 101}
-- {channel: Looper, name: Looper Test, type: CC, number: 34, value: 0}
+- {channel: Aeros, name: Aeros Main Click, type: CC, number: 45, value: 8}
+- {channel: Aeros, name: Aeros Aux Click, type: CC, number: 45, value: 9}
+- {channel: Aeros, name: MSB, type: CC, number: 0, value: 0}
+- {channel: Aeros, name: FWIW, type: PC, number: 0}
+- {channel: Aeros, name: Swirling, type: PC, number: 1}
+- {channel: Aeros, name: Saints and Martyrs, type: PC, number: 2}
 # startup messages
 on_startup: [H9 Enable, Iridium Enable, Timeline Enable]
 # Banks - as a list
@@ -154,6 +159,7 @@ banks:
     toggle_name: Disabled
     colors: bypass
     toggle_mode: true
+    toggle_group: 4
     messages:
     - {midi_message: Iridium Disable, toggle: one}
     - {midi_message: Iridium Enable, toggle: two}
@@ -173,9 +179,42 @@ banks:
     messages:
     - {midi_message: Iridium Bank 0}
     - {midi_message: Iridium Max Distortion}
+- name: Aeros Looper
+  description: Aeros Looper config
+  display_description: true
+  presets:
+  - short_name: Main Click
+    toggle_name: Aux Click
+    colors: bypass
+    toggle_mode: true
+    toggle_group: 4
+    messages:
+    - {midi_message: Aeros Main Click, toggle: one}
+    - {midi_message: Aeros Aux Click, toggle: two}
+  - short_name: Adjust Main Click
+    messages:
+    - {midi_message: Aeros Main Click, toggle: one}
+  - short_name: Adjust Toggle Click
+    messages:
+    - {midi_message: Aeros Aux Click, toggle: two}
 - name: For What It's Worth
   description: Crosby, Stills, Nash and Young
   display_description: true
+  messages:
+    - {midi_message: MSB}
+    - {midi_message: FWIW}
+- name: Swirling
+  description: The Air Swirls
+  display_description: true
+  messages:
+    - {midi_message: MSB}
+    - {midi_message: Swirling}
+- name: Saints and Martyrs
+  description: Thanks to Flannery OConnor
+  display_description: true
+  messages:
+    - {midi_message: MSB}
+    - {midi_message: Saints and Martyrs}
 - name: Prelude in C# Minor
   description: Rachmaninoff
   display_description: true

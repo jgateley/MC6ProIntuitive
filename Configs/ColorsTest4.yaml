@@ -1,9 +1,9 @@
 # This test:
 #   navigator color schema unspecified
 #   default color schema unspecified
-version: 0.1.1
+version: 0.1.2
 # Use navigator mode
-navigator: true
+navigator: Two Button
 # Color schemas
 colors:
 - name: bank two

@@ -14,7 +14,7 @@ import json_grammar as jg
 # Naming makes them more intuitive
 # At the top level: they are easily resused
 
-intuitive_version = '0.1.1'
+intuitive_version = '0.1.2'
 
 preset_colors = ["black", "lime", "blue", "color3", "yellow", "orchid", "gray", "white",
                  "orange", "red", "skyblue", "deeppink", "olivedrab", "mediumslateblue", "darkgreen", "color15",
@@ -54,6 +54,9 @@ bank_message_trigger = ["unused", "On Enter Bank", "On Exit Bank", "On Enter Ban
                         "On Toggle Page - Page 1", "On Toggle Page - Page 2"]
 bank_message_trigger_default = bank_message_trigger[1]
 
+navigator_mode = ["None", "One Button", "Two Button"]
+navigator_mode_default = "None"
+
 
 class IntuitiveException(Exception):
     """used for exceptions raised during Intuitive operations"""
@@ -80,7 +83,13 @@ class MessageCatalog:
         return intuitive_message.name
 
     def lookup(self, name):
-        return self.catalog[name]
+        try:
+            return self.catalog[name]
+        except KeyError as e:
+            msg = "Message " + e.args[0] + " not found\n"
+            msg += ", ".join(sorted(list(self.catalog.keys())))
+            msg += "\n"
+            raise IntuitiveException('message_not_found', msg)
 
     def to_list(self):
         result = []
@@ -140,6 +149,189 @@ class ColorsCatalog:
         for schema_name in self.catalog:
             result.append(self.catalog[schema_name])
         return result
+
+    def get_navigator_schema(self):
+        if 'navigator' in self.catalog:
+            return 'navigator'
+        elif 'default' in self.catalog:
+            return 'default'
+        else:
+            return None
+
+
+class Navigator:
+    @staticmethod
+    def clone_bank(bank, overflow_number, presets):
+        result = IntuitiveBank()
+        result.name = bank.name + " (" + str(overflow_number + 2) + ")"
+        result.description = bank.description
+        result.colors = bank.colors
+        result.presets = presets
+        return result
+
+    def __init__(self, mode, banks, colors_catalog, message_catalog):
+        self.mode = mode
+        self.banks = banks
+        self.colors_schema = colors_catalog.get_navigator_schema()
+        self.message_catalog = message_catalog
+        if mode == "One Button":
+            self.main_action = "Release"
+            self.second_action = "Long Press"
+        else:
+            self.main_action = "Press"
+            self.second_action = "Press"
+        self.blank_preset = self.mk_preset('', [])
+        return_to_home_message = self.mk_bank_jump_message('Home')
+        self.return_to_home_preset = self.mk_preset('Home', self.mk_preset_messages(return_to_home_message))
+        self.next_page_message = IntuitiveMessage.make_toggle_page_message('next_page', True, message_catalog)
+        self.next_page_preset = self.mk_preset('Next', self.mk_preset_messages(self.next_page_message))
+        self.prev_page_message = IntuitiveMessage.make_toggle_page_message('prev_page', False, message_catalog)
+        self.prev_page_preset = self.mk_preset('Previous', self.mk_preset_messages(self.prev_page_message))
+        self.prev_next_page_preset = self.mk_preset('Previous/Next',
+                                                    self.mk_preset_messages(self.prev_page_message,
+                                                                            self.next_page_message))
+
+    def pad_presets(self, presets, desired_length):
+        while len(presets) < desired_length:
+            presets.append(self.blank_preset)
+
+    def mk_bank_jump_message(self, bank_name):
+        return IntuitiveMessage.make_bank_jump_message('navigator ' + bank_name, bank_name, 0, self.message_catalog)
+
+    def mk_preset_messages(self, main_message, second_message=None):
+        if isinstance(main_message, IntuitivePresetMessage):
+            first_message = main_message
+        else:
+            first_message = IntuitivePresetMessage.make(main_message, self.main_action)
+        result = [first_message]
+        if second_message is not None:
+            result.append(IntuitivePresetMessage.make(second_message, self.second_action))
+        return result
+
+    def mk_preset(self, name, messages):
+        return IntuitivePreset.make(name, messages, self.colors_schema)
+
+    # Clean up the bank list (remove internal Nones)
+    # Add in the roadmap bank at the beginning
+    # Fill in the roadmap presets, and add the home preset to each bank
+    # Go through each bank:
+    #   Add the home preset or prev page preset
+    #   Add next page preset if needed
+    # Go through each real bank and add the home preset, and page moving presets
+    def build(self):
+        self.add_home_bank()
+        self.add_page_up_down()
+
+    def add_home_bank(self):
+        jg.compact_list(self.banks)
+        home_bank = self.get_home_bank()
+        # And add in the navigator presets and the return home preset
+        for bank in self.banks:
+            home_bank.presets.append(self.jump_to_bank_preset(bank))
+            self.add_navigator_home_preset(bank)
+        self.banks.insert(0, home_bank)
+
+    def get_home_bank(self):
+        result = IntuitiveBank()
+        result.name = "Home"
+        result.description = "Navigation Home"
+        result.colors = self.colors_schema
+        result.presets = []
+        return result
+
+    def jump_to_bank_preset(self, bank):
+        jump_to_bank_message = self.mk_bank_jump_message(bank.name)
+        return self.mk_preset(bank.name, self.mk_preset_messages(jump_to_bank_message))
+
+    def add_navigator_home_preset(self, bank):
+        home_offset = 2
+        if self.mode == "One Button":
+            home_offset = 5
+        if bank.presets is None:
+            bank.presets = []
+        self.pad_presets(bank.presets, home_offset)
+        bank.presets.insert(home_offset, copy.deepcopy(self.return_to_home_preset))
+
+    def add_page_up_down(self):
+        bank_number = 0
+        while bank_number < len(self.banks):
+            bank = self.banks[bank_number]
+            presets = self.add_page_up_down_bank(bank)
+            prev_bank = bank
+            bank_number += 1
+            overflow_number = 0
+            while len(presets) > 0:
+                bank = self.clone_bank(bank, overflow_number, presets)
+                self.add_next_bank(prev_bank, bank)
+                self.add_previous_bank(bank, prev_bank)
+                self.banks.insert(bank_number + overflow_number, bank)
+                presets = self.add_page_up_down_bank(bank)
+                prev_bank = bank
+                overflow_number += 1
+            bank_number += overflow_number
+
+    def add_paging_preset_pair(self, bank, page):
+        pos = page * 6 + 5
+        offset = pos + 3
+        if self.mode == "One Button":
+            offset = pos + 6
+        if bank.presets[pos] == self.prev_page_preset:
+            # The previous page has already added a next/previous pair, this is the "previous" part of the pair
+            bank.presets[pos] = self.prev_next_page_preset
+        elif bank.presets[pos].short_name == 'Previous':
+            # In one button mode, one page 1 of an overflow bank, we need to add a next page
+            preset = bank.presets[pos]
+            preset.short_name = 'Previous/Next'
+            preset.messages = self.mk_preset_messages(preset.messages[0], self.next_page_message)
+        elif bank.presets[pos].short_name == 'Home':
+            # Add a page up message to the return to home preset
+            preset = bank.presets[pos]
+            preset.short_name = 'Home/Next'
+            preset.messages = self.mk_preset_messages(preset.messages[0], self.next_page_message)
+        else:
+            bank.presets.insert(pos, self.next_page_preset)
+        self.pad_presets(bank.presets, offset)
+        bank.presets.insert(offset, self.prev_page_preset)
+
+    def add_page_up_down_bank(self, bank):
+        if len(bank.presets) <= 6:
+            return []
+        self.add_paging_preset_pair(bank, 0)
+        if len(bank.presets) <= 12:
+            return []
+        self.add_paging_preset_pair(bank, 1)
+        if len(bank.presets) <= 18:
+            return []
+        self.add_paging_preset_pair(bank, 2)
+        if len(bank.presets) <= 24:
+            return []
+        if self.mode == "One Button":
+            limit = 24
+        else:
+            limit = 23
+        result = bank.presets[limit:]
+        bank.presets = bank.presets[0:limit]
+        return result
+
+    def add_next_bank(self, bank, next_bank):
+        next_page_message = self.mk_bank_jump_message(next_bank.name)
+        if self.mode == "One Button":
+            prev_next_page_preset = self.mk_preset('Previous/Next',
+                                                   self.mk_preset_messages(self.prev_page_message, next_page_message))
+            bank.presets[23] = prev_next_page_preset
+        else:
+            next_page_preset = self.mk_preset('Next', self.mk_preset_messages(next_page_message))
+            bank.presets.insert(23, next_page_preset)
+
+    def add_previous_bank(self, bank, previous_bank):
+        previous_page_message = self.mk_bank_jump_message(previous_bank.name)
+        previous_page_preset = self.mk_preset('Previous', self.mk_preset_messages(previous_page_message))
+        position = 2
+        if self.mode == "One Button":
+            position = 5
+        while len(bank.presets) < position:
+            bank.presets.append(self.blank_preset)
+        bank.presets.insert(position, previous_page_preset)
 
 
 # Colors Schemas
@@ -258,7 +450,8 @@ class IntuitiveMessage(jg.JsonGrammarModel):
         result.name = name
         result.type = 'Bank Jump'
         result.bank = bank
-        result.page = page
+        if page is not None and page != 0:
+            result.page = page
         if message_catalog is not None:
             return message_catalog.add(result)
         return result
@@ -351,7 +544,7 @@ class IntuitiveMessage(jg.JsonGrammarModel):
                 bank_number = base_message.msg_array_data[0]
             self.bank = banks[bank_number]
             if base_message.msg_array_data[2] == 6:
-                self.page = 0
+                self.page = None
             elif base_message.msg_array_data[2] == 7:
                 self.page = 1
             elif base_message.msg_array_data[2] == 14:
@@ -360,7 +553,9 @@ class IntuitiveMessage(jg.JsonGrammarModel):
                 self.page = 3
             else:
                 raise IntuitiveException('missing case', 'missing case')
-            self.name += self.bank + ':' + str(self.page)
+            self.name += self.bank + ':'
+            if self.page is not None:
+                self.name += str(self.page)
             if base_message.msg_array_data[1] is not None:
                 raise IntuitiveException('bad_message', 'data array is nonzero')
         elif self.type == 'Toggle Page':
@@ -403,7 +598,7 @@ class IntuitiveMessage(jg.JsonGrammarModel):
             base_message.msg_array_data[0] = bank_catalog[self.bank]
             if base_message.msg_array_data[0] == 0:
                 base_message.msg_array_data[0] = None
-            if self.page == 0:
+            if self.page == 0 or self.page is None:
                 base_message.msg_array_data[2] = 6
             elif self.page == 1:
                 base_message.msg_array_data[2] = 7
@@ -438,10 +633,10 @@ class IntuitiveMessage(jg.JsonGrammarModel):
 class IntuitivePresetMessage(jg.JsonGrammarModel):
 
     @staticmethod
-    def make(message_name):
+    def make(message_name, trigger):
         result = IntuitivePresetMessage()
         result.midi_message = message_name
-        result.trigger = "Press"
+        result.trigger = trigger
         return result
 
     def __init__(self):
@@ -452,7 +647,7 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
 
     def __eq__(self, other):
         result = (isinstance(other, IntuitivePresetMessage) and self.trigger == other.trigger and
-                  self.toggle == other.toggle)
+                  self.toggle == other.toggle and self.midi_message == other.midi_message)
         if not result:
             self.modified = True
         return result
@@ -537,10 +732,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
         result = IntuitivePreset()
         result.short_name = short_name
         result.messages = messages
-        if colors is None or isinstance(colors, str):
-            result.colors = colors
-        else:
-            result.colors = colors.name
+        result.colors = colors
         return result
 
     def __init__(self):
@@ -643,27 +835,6 @@ class IntuitiveBank(jg.JsonGrammarModel):
             self.modified = True
         return result
 
-    @staticmethod
-    def build_roadmap_bank(bank_number, colors):
-        result = IntuitiveBank()
-        result.name = "Home"
-        if bank_number > 0:
-            result.name += " (" + str(bank_number + 1) + ")"
-        result.description = "Navigation Home"
-        result.presets = []
-        if colors is None or isinstance(colors, str):
-            result.colors = colors
-        else:
-            result.colors = colors.name
-        return result
-
-    @staticmethod
-    def build_overflow_bank(name, description, overflow_number):
-        result = IntuitiveBank()
-        result.name = name + " (" + str(overflow_number + 1) + ")"
-        result.description = description
-        return result
-
     def from_base(self, base_bank, message_catalog, colors_catalog, bank_catalog, midi_channels):
         if base_bank.short_name is not None:
             raise IntuitiveException('unimplemented', 'bank short_name')
@@ -714,48 +885,6 @@ class IntuitiveBank(jg.JsonGrammarModel):
                     base_bank.set_preset(base_preset, pos)
         return base_bank
 
-    def add_navigator_home_preset(self, return_to_home_preset, blank_preset):
-        if self.presets is None:
-            self.presets = []
-        while len(self.presets) < 2:
-            self.presets.append(blank_preset)
-        self.presets.insert(2, return_to_home_preset)
-
-    def add_paging_preset_pair(self, pos, next_page_preset, prev_page_preset):
-        self.presets.insert(pos, next_page_preset)
-        while len(self.presets) < pos + 3:
-            self.presets.append(self.blank_preset)
-        self.presets.insert(pos + 3, prev_page_preset)
-
-    def add_paging_presets(self, next_page_preset, prev_page_preset, bank_number, banks, message_catalog,
-                           navigators_colors_schema):
-        if len(self.presets) <= 6:
-            return []
-        self.add_paging_preset_pair(5, next_page_preset, prev_page_preset)
-        if len(self.presets) <= 12:
-            return []
-        self.add_paging_preset_pair(11, next_page_preset, prev_page_preset)
-        if len(self.presets) <= 18:
-            return []
-        self.add_paging_preset_pair(17, next_page_preset, prev_page_preset)
-        if len(self.presets) <= 24:
-            return []
-        # Need a jump to next bank, page 0 and prior bank, page 3
-        next_page_message = IntuitiveMessage.make_bank_jump_message('next_bank_' + str(bank_number+1),
-                                                                    banks[bank_number+1].name, 0, message_catalog)
-        next_page_preset = IntuitivePreset.make('Next',
-                                                [IntuitivePresetMessage.make(next_page_message)],
-                                                navigators_colors_schema)
-        prev_page_message = IntuitiveMessage.make_bank_jump_message('prev_bank_' + str(bank_number),
-                                                                    banks[bank_number].name, 3, message_catalog)
-        prev_page_preset = IntuitivePreset.make('Previous',
-                                                [IntuitivePresetMessage.make(prev_page_message)],
-                                                navigators_colors_schema)
-        self.add_paging_preset_pair(23, next_page_preset, prev_page_preset)
-        result = self.presets[24:]
-        self.presets = self.presets[0:24]
-        return result
-
 
 class IntuitiveMidiChannel(jg.JsonGrammarModel):
     def __init__(self):
@@ -805,111 +934,6 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
         if not result:
             self.modified = True
         return result
-
-    @staticmethod
-    def number_overflow_pages(bank_presets):
-        presets_len = 0
-        if bank_presets is not None:
-            presets_len = len(bank_presets)
-        result = (presets_len + (MC6ProIntuitive.page_size - 4)) // (MC6ProIntuitive.page_size - 2)
-        if result < 1:
-            result = 1
-        return result
-
-    @staticmethod
-    def number_pages(nmr_banks):
-        result = (nmr_banks + (MC6ProIntuitive.page_size - 5)) // (MC6ProIntuitive.page_size - 2)
-        if result == 0:
-            result = 1
-        return result
-
-    @staticmethod
-    def number_banks(nmr_pages):
-        return (nmr_pages + 3) // 4
-
-    number_pages_per_bank = 16
-
-    # Clean up the bank list (remove internal Nones)
-    # Add in the roadmap banks at the beginning
-    # Fill in the roadmap presets
-    # Go through each roadmap bank:
-    #   Add the home preset or prev page preset
-    #   Add next page preset if needed
-    # Go through each real bank and add the home preset, and page moving presets
-    def build_roadmap(self):
-        if 'navigator' in self.colors_catalog.catalog:
-            navigator_colors_schema = self.colors_catalog.catalog['navigator']
-        elif 'default' in self.colors_catalog.catalog:
-            navigator_colors_schema = self.colors_catalog.catalog['default']
-        else:
-            navigator_colors_schema = ColorSchema()
-        blank_preset = IntuitivePreset.make('', [], None)
-        return_to_home_message = IntuitiveMessage.make_bank_jump_message('navigator_home', 'Home',
-                                                                         0, self.message_catalog)
-        return_to_home_preset = IntuitivePreset.make('Home',
-                                                     [IntuitivePresetMessage.make(return_to_home_message)],
-                                                     navigator_colors_schema)
-        next_page_message = IntuitiveMessage.make_toggle_page_message('next_page', True, self.message_catalog)
-        next_page_preset = IntuitivePreset.make('Next', [IntuitivePresetMessage.make(next_page_message)],
-                                                navigator_colors_schema)
-        prev_page_message = IntuitiveMessage.make_toggle_page_message('prev_page', False, self.message_catalog)
-        prev_page_preset = IntuitivePreset.make('Previous', [IntuitivePresetMessage.make(prev_page_message)],
-                                                navigator_colors_schema)
-
-        # Clean up the bank list
-        jg.compact_list(self.banks)
-        number_non_navigation_banks = len(self.banks)
-
-        # Compute the number of roadmap pages
-        nmr_roadmap_pages = MC6ProIntuitive.number_pages(number_non_navigation_banks)
-        nmr_roadmap_banks = MC6ProIntuitive.number_banks(nmr_roadmap_pages)
-
-        # Create the roadmap banks
-        for i in range(nmr_roadmap_banks):
-            self.banks.insert(i, IntuitiveBank.build_roadmap_bank(i, navigator_colors_schema))
-
-        # And add in the navigator presets
-        for bank in self.banks[nmr_roadmap_banks:]:
-            jump_to_bank_message = IntuitiveMessage.make_bank_jump_message('navigator ' + bank.name,
-                                                                           bank.name, 0,
-                                                                           self.message_catalog)
-            jump_to_bank_preset = IntuitivePreset.make(bank.name, [IntuitivePresetMessage.make(jump_to_bank_message)],
-                                                       navigator_colors_schema)
-            self.banks[0].presets.append(jump_to_bank_preset)
-
-        # Now add in the prev/next buttons
-        remaining_presets = self.banks[0].add_paging_presets(next_page_preset, prev_page_preset, 0,
-                                                             self.banks, self.message_catalog, navigator_colors_schema)
-        for i in range(1, nmr_roadmap_banks):
-            self.banks[i].presets = remaining_presets
-            remaining_presets = self.banks[i].add_paging_presets(next_page_preset, prev_page_preset, i,
-                                                                 self.banks, self.message_catalog,
-                                                                 navigator_colors_schema)
-        if remaining_presets:
-            raise IntuitiveException('programmer_error', "extra presets")
-
-        # Create the overflow banks
-        i = nmr_roadmap_banks
-        while i < len(self.banks):
-            bank = self.banks[i]
-            nmr_pages = self.number_overflow_pages(bank.presets)
-            nmr_overflow_banks = (nmr_pages + 3) // 4 - 1
-            for j in range(nmr_overflow_banks):
-                self.banks.insert(i + 1 + j, IntuitiveBank.build_overflow_bank(bank.name, bank.description, j + 1))
-            bank.add_navigator_home_preset(return_to_home_preset, blank_preset)
-            remaining_presets = bank.add_paging_presets(next_page_preset, prev_page_preset,
-                                                        i, self.banks, self.message_catalog, navigator_colors_schema)
-            for j in range(nmr_overflow_banks):
-                self.banks[i + 1 + j].presets = remaining_presets
-                remaining_presets = self.banks[i + 1 + j].add_paging_presets(next_page_preset,
-                                                                             prev_page_preset,
-                                                                             i,
-                                                                             self.banks,
-                                                                             self.message_catalog,
-                                                                             navigator_colors_schema)
-            i += 1 + nmr_overflow_banks
-            if remaining_presets:
-                raise IntuitiveException('programmer_error', "extra presets")
 
     # Parse the MIDI channels (names) first, as these are needed for MIDI messages
     # Then process the banks, gathering messages as we go, and handling bank arrangement
@@ -963,7 +987,7 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
     # Do the MIDI channel names first
     # Gather the messages into a dictionary
     # Convert the banks using that dictionary
-    def to_base(self):
+    def to_base(self, navigator_override=None):
         config = MC6Pro_grammar.MC6Pro()
 
         # Create the channel list, mapping names to indices
@@ -984,8 +1008,11 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
         self.colors_catalog = ColorsCatalog(self.colors)
 
         # If navigator is set, create the roadmap
-        if self.navigator:
-            self.build_roadmap()
+        if self.navigator and self.navigator != 'None':
+            if navigator_override is not None:
+                self.navigator = navigator_override
+            navigator = Navigator(self.navigator, self.banks, self.colors_catalog, self.message_catalog)
+            navigator.build()
 
         # now add on startup messages
         if self.on_startup:
@@ -1017,38 +1044,45 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
 colors_schema = \
     jg.Dict(
         'colors',
-        [jg.Dict.make_key('name', jg.Atom(str, var='name')),
-         jg.Dict.make_key('bank_color', jg.Enum(preset_colors, None, var='bank_color')),
-         jg.Dict.make_key('bank_background_color', jg.Enum(preset_colors, None, var='bank_background_color')),
-         jg.Dict.make_key('preset_color', jg.Enum(preset_colors, None, var='preset_color')),
-         jg.Dict.make_key('preset_background_color', jg.Enum(preset_colors, None, var='preset_background_color')),
-         jg.Dict.make_key('preset_toggle_color', jg.Enum(preset_colors, None, var='preset_toggle_color')),
-         jg.Dict.make_key('preset_toggle_background_color', jg.Enum(preset_colors, None,
-                                                                    var='preset_toggle_background_color'))],
+        [jg.Dict.make_key('name', jg.Atom('Name', str, var='name')),
+         jg.Dict.make_key('bank_color', jg.Enum('Bank Color', preset_colors, None, var='bank_color')),
+         jg.Dict.make_key('bank_background_color',
+                          jg.Enum('Bank Background Color', preset_colors, None, var='bank_background_color')),
+         jg.Dict.make_key('preset_color',
+                          jg.Enum('Preset Color', preset_colors, None, var='preset_color')),
+         jg.Dict.make_key('preset_background_color',
+                          jg.Enum('Preset Background Color', preset_colors, None, var='preset_background_color')),
+         jg.Dict.make_key('preset_toggle_color',
+                          jg.Enum('Preset Toggle Color', preset_colors, None, var='preset_toggle_color')),
+         jg.Dict.make_key('preset_toggle_background_color',
+                          jg.Enum('Preset Toggle Background Color', preset_colors, None,
+                                  var='preset_toggle_background_color'))],
         model=ColorSchema)
 
 # MIDI channel grammar, just a name
 midi_channel_schema = \
     jg.Dict(
         'midi_channel',
-        [jg.Dict.make_key('name', jg.Atom(str, '', var='name'))],
+        [jg.Dict.make_key('name', jg.Atom('Name', str, '', var='name'))],
         model=IntuitiveMidiChannel)
 
 
 # MIDI message: This is misnamed, should be controller message?
 # It is MIDI messages (PC and CC with one or two values)
 # Or controller messages (Jump Bank or Toggle Page with page and bank values)
-message_switch_key = jg.SwitchDict.make_key('type', jg.Enum(midi_message_type, midi_message_default, var='type'))
-message_common_keys = [jg.SwitchDict.make_key('name', jg.Atom(str, '', var='name')),
-                       jg.SwitchDict.make_key('channel', jg.Atom(str, '', var='channel'))]
+message_switch_key = jg.SwitchDict.make_key('type',
+                                            jg.Enum('Type', midi_message_type, midi_message_default, var='type'))
+message_common_keys = [jg.SwitchDict.make_key('name', jg.Atom('Name', str, '', var='name')),
+                       jg.SwitchDict.make_key('channel',
+                                              jg.Atom('Channel', str, '', var='channel'))]
 message_case_keys = {
-    'PC': [jg.SwitchDict.make_key('number', jg.Atom(int, var='number'))],
-    'CC': [jg.SwitchDict.make_key('number', jg.Atom(int, var='number')),
-           jg.SwitchDict.make_key('value', jg.Atom(int, var='value'))],
-    'Bank Jump': [jg.SwitchDict.make_key('bank', jg.Atom(str, var='bank')),
-                  jg.SwitchDict.make_key('page', jg.Atom(int, var='page'))],
-    'Page Jump': [jg.SwitchDict.make_key('page', jg.Atom(int, var='page'))],
-    'Toggle Page': [jg.SwitchDict.make_key('page_up', jg.Atom(bool, var='page_up'))]
+    'PC': [jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number'))],
+    'CC': [jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number')),
+           jg.SwitchDict.make_key('value', jg.Atom('Value', int, var='value'))],
+    'Bank Jump': [jg.SwitchDict.make_key('bank', jg.Atom('Bank', str, var='bank')),
+                  jg.SwitchDict.make_key('page', jg.Atom('Page', int, default=0, var='page'))],
+    'Page Jump': [jg.SwitchDict.make_key('page', jg.Atom('Page', int, var='page'))],
+    'Toggle Page': [jg.SwitchDict.make_key('page_up', jg.Atom('Page Up', bool, var='page_up'))]
 }
 message_schema = jg.SwitchDict('message_schema', message_switch_key,
                                message_case_keys, message_common_keys,
@@ -1058,45 +1092,58 @@ message_schema = jg.SwitchDict('message_schema', message_switch_key,
 preset_message_schema = \
     jg.Dict('preset_message',
             [jg.Dict.make_key('trigger',
-                              jg.Enum(preset_message_trigger, preset_message_trigger_default, var='trigger')),
+                              jg.Enum('Trigger', preset_message_trigger, preset_message_trigger_default,
+                                      var='trigger')),
              jg.Dict.make_key('toggle',
-                              jg.Enum(preset_toggle_state, preset_toggle_state_default, var='toggle')),
-             jg.Dict.make_key('midi_message', jg.Atom(str, var='midi_message'))],
+                              jg.Enum('Toggle', preset_toggle_state, preset_toggle_state_default, var='toggle')),
+             jg.Dict.make_key('midi_message', jg.Atom('MIDI Message', str, var='midi_message'))],
             model=IntuitivePresetMessage)
 
 # All the information associated with a preset
 preset_schema = \
     jg.Dict('preset',
-            [jg.Dict.make_key('short_name', jg.Atom(str, 'EMPTY', var='short_name')),
-             jg.Dict.make_key('long_name', jg.Atom(str, '', var='long_name')),
-             jg.Dict.make_key('toggle_name', jg.Atom(str, '', var='toggle_name')),
-             jg.Dict.make_key('toggle_mode', jg.Atom(bool, False, var='toggle_mode')),
-             jg.Dict.make_key('toggle_group', jg.Atom(int, 0, var='toggle_group')),
-             jg.Dict.make_key('colors', jg.Atom(str, '', var='colors')),
-             jg.Dict.make_key('strip_color', jg.Enum(preset_colors, preset_empty_color, var='strip_color')),
+            [jg.Dict.make_key('short_name',
+                              jg.Atom('Short Name', str, 'EMPTY', var='short_name')),
+             jg.Dict.make_key('long_name',
+                              jg.Atom('Long Name', str, '', var='long_name')),
+             jg.Dict.make_key('toggle_name',
+                              jg.Atom('Toggle Name', str, '', var='toggle_name')),
+             jg.Dict.make_key('toggle_mode',
+                              jg.Atom('Toggle Mode', bool, False, var='toggle_mode')),
+             jg.Dict.make_key('toggle_group',
+                              jg.Atom('Toggle Group', int, 0, var='toggle_group')),
+             jg.Dict.make_key('colors',
+                              jg.Atom('Colors', str, '', var='colors')),
+             jg.Dict.make_key('strip_color',
+                              jg.Enum('Strip Color', preset_colors, preset_empty_color, var='strip_color')),
              jg.Dict.make_key('strip_toggle_color',
-                              jg.Enum(preset_colors, preset_empty_color, var='strip_toggle_color')),
-             jg.Dict.make_key('messages', jg.List(32, preset_message_schema, var='messages'))],
+                              jg.Enum('Strip Toggle Color', preset_colors, preset_empty_color,
+                                      var='strip_toggle_color')),
+             jg.Dict.make_key('messages',
+                              jg.List('Message List', 32, preset_message_schema, var='messages'))],
             model=IntuitivePreset)
 
 # The Bank Message is a bank message, includes only trigger state (no toggle) as well as the included MIDI message
 bank_message_schema = \
     jg.Dict('bank_message',
             [jg.Dict.make_key('trigger',
-                              jg.Enum(bank_message_trigger, bank_message_trigger_default, var='trigger')),
-             jg.Dict.make_key('midi_message', jg.Atom(str, var='midi_message'))],
+                              jg.Enum('Trigger', bank_message_trigger, bank_message_trigger_default, var='trigger')),
+             jg.Dict.make_key('midi_message', jg.Atom('MIDI Message', str, var='midi_message'))],
             model=IntuitiveBankMessage)
 
 # All the information associated with a bank
 bank_schema = \
     jg.Dict('bank',
-            [jg.Dict.make_key('name', jg.Atom(str, '', var='name')),
-             jg.Dict.make_key('description', jg.Atom(str, '', var='description')),
-             jg.Dict.make_key('colors', jg.Atom(str, '', var='colors')),
-             jg.Dict.make_key('clear_toggle', jg.Atom(bool, False, var='clear_toggle')),
-             jg.Dict.make_key('display_description', jg.Atom(bool, False, var='display_description')),
-             jg.Dict.make_key('messages', jg.List(32, bank_message_schema, var='messages')),
-             jg.Dict.make_key('presets', jg.List(0, preset_schema, var='presets'))],
+            [jg.Dict.make_key('name', jg.Atom('Name', str, '', var='name')),
+             jg.Dict.make_key('description', jg.Atom('Description', str, '', var='description')),
+             jg.Dict.make_key('colors', jg.Atom('Colors', str, '', var='colors')),
+             jg.Dict.make_key('clear_toggle',
+                              jg.Atom('Clear Toggle', bool, False, var='clear_toggle')),
+             jg.Dict.make_key('display_description',
+                              jg.Atom('Display Description', bool, False, var='display_description')),
+             jg.Dict.make_key('messages',
+                              jg.List('Message List', 32, bank_message_schema, var='messages')),
+             jg.Dict.make_key('presets', jg.List('Preset List', 0, preset_schema, var='presets'))],
             model=IntuitiveBank)
 
 
@@ -1115,12 +1162,15 @@ def version_verify(elem, _ctxt, _lp):
 # The whole schema
 mc6pro_intuitive_schema = \
     jg.Dict('mc6pro_intuitive',
-            [jg.Dict.make_key('midi_channels', jg.List(16, midi_channel_schema, var='midi_channels')),
-             jg.Dict.make_key('messages', jg.List(0, message_schema, var='messages')),
-             jg.Dict.make_key('banks', jg.List(128, bank_schema, var='banks')),
-             jg.Dict.make_key('midi_channel', jg.Atom(int, 1, var='midi_channel')),
-             jg.Dict.make_key('colors', jg.List(0, colors_schema, var='colors')),
-             jg.Dict.make_key('navigator', jg.Atom(bool, False, var='navigator')),
-             jg.Dict.make_key('on_startup', jg.List(0, jg.Atom(str), var='on_startup')),
-             jg.Dict.make_key('version', jg.Atom(str, value=version_verify, var='version'), required=True)],
+            [jg.Dict.make_key('midi_channels',
+                              jg.List('MIDI Channel List', 16, midi_channel_schema, var='midi_channels')),
+             jg.Dict.make_key('messages', jg.List('Message List', 0, message_schema, var='messages')),
+             jg.Dict.make_key('banks', jg.List('Bank List', 128, bank_schema, var='banks')),
+             jg.Dict.make_key('midi_channel', jg.Atom('MIDI Channel', int, 1, var='midi_channel')),
+             jg.Dict.make_key('colors', jg.List('Color List', 0, colors_schema, var='colors')),
+             jg.Dict.make_key('navigator', jg.Enum('Navigator', navigator_mode, "None", var='navigator')),
+             jg.Dict.make_key('on_startup',
+                              jg.List('On Startup List', 0, jg.Atom('Message', str), var='on_startup')),
+             jg.Dict.make_key('version',
+                              jg.Atom('Version', str, value=version_verify, var='version'), required=True)],
             model=MC6ProIntuitive)

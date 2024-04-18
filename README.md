@@ -104,9 +104,16 @@ Navigator mode has two aspects:
 - it is easy to navigate between banks
 - it is easy to navigate between pages in a bank
 
-In navigator mode, bank 1 is a roadmap. The presets for bank 1 are named after banks, and pressing the preset takes you to that bank. Preset C on each bank is set to return you to the roadmap.
+Navigator mode can operate in "One Button" or "Two Button" modes. The basic approach is the same, but "One Button" mode uses a single preset
+in each page, and "Two Button" mode uses two presets. In "Two Button" mode, each navigator preset
+has a single function and is executed by a press. In "One Button" mode, each navigator
+preset (except for Bank One's 'go to bank' presets) has two functions, the first exected by a press (actually a release)
+and the second executed by a long press.
 
-In addition, all banks (including the roadmap) bank use the two rightmost presets (e.g. C and F on page 1) for page navigation - page up and page down.
+In navigator mode, bank 1 is a roadmap. The presets for bank 1 are named after banks, and pressing the preset takes you to that bank.
+There is one preset on each bank to return you to the roadmap.
+
+In addition, all banks (including the roadmap) bank use one or two rightmost presets for page navigation - page up and page down.
 
 If you define a bank (in an Intuitive conf file) that has more than 24 presets, that bank is broken into two MC6Pro banks, and the page up/page down presets navigate between the two banks and pages seamlessly.
 This may happen even with less than 24 presets, as the page navigation presets inserted by Navigator Mode count against the total.
@@ -114,12 +121,17 @@ This may happen even with less than 24 presets, as the page navigation presets i
 ## Use
 
 Everything is done via the python app `mc6pro.py` and the `Controller Backup` tab on the Morningstar Editor.
+You will need Python3 installed, and the packages PyYAML and semver.
 You also have the following resources:
 
 ### Features.json
 This contains all implemented features as a backup file. Convert it to an intuitive config to see the syntax:
 
-`python3 -b Features.json Features-Intuitive.json`
+```
+mkdir tmp
+python3 mc6pro.py -b Config/Features.json tmp/Features-Intuitive.json
+```
+
 
 ### Demo.yaml
 This is a sample Intuitive config file
@@ -139,7 +151,7 @@ The names chosen for the messages are not intuitive, so you should rename them. 
 
 Now, edit your `Intuitive.yaml` file, and make any changes or additions. Then convert it to a backup file:
 
-`python3 intuitive.yaml intuitive-base.json`
+`python3 mc6pro.py intuitive.yaml intuitive-base.json`
 
 And load that file via the `Controller Backup` tab in the editor using `Restore your controller presets`
 Note that the MC6Pro will state the file has been modified.

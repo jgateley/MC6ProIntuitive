@@ -1,7 +1,7 @@
 # This test:
 #   navigator color schema specified
 #   default color schema specified
-version: 0.1.2
+version: 0.2.0
 # Use navigator mode
 navigator: Two Button
 # Color schemas

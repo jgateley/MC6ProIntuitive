@@ -70,7 +70,7 @@
 | Clear Toggle | Yes         | Only 1 preset in toggle state 2 |
 | Bank Message Array | Partial     | See message subtable            |
 | Preset Array | Partial     | See subtable                    |
-| Exp Preset Array | No          | See subtable                    |
+| Exp Preset Array | Partial     | Same as Preset Array            |
 | Description | Yes         |                                 |
 | To Display | Yes         | Display bank description        |
 | Background Color | Yes         |                                 |
@@ -89,7 +89,7 @@
 | Shift Name              | No          | |
 | Toggle Mode             | Yes         |  |
 | To Blink                | No          | |
-| To Message Scroll       | No          | |
+| To Message Scroll       | Yes         | |
 | Toggle Group            | Yes         | |
 | LED Color               | Yes         |  |
 | LED Toggle Color        | Yes         |  |
@@ -112,8 +112,8 @@
 | Messages   | Implemented | Notes                                                                                  |
 |------------|-------------|----------------------------------------------------------------------------------------|
 | m (number) | Yes         | Must be in order                                                                       |
-| c (channel) | Yes |                                                                                        |
-| t (type) | Partial | PC, CC, Bank Jump, Page Jump, Toggle Page                                              |
-| a (trigger) | Yes | Bank Triggers and Preset Triggers                                                      |
-| tg (Toggle Group) | Yes | but toggle groups not implemented. Not sure what this is, as toggle groups are presets |
-| mi (unknown) | No |                                                                                        |
+| c (channel) | Yes         |                                                                                        |
+| t (type) | Yes         | All done, sysex may not be complete                                                    |
+| a (trigger) | Yes         | Bank Triggers and Preset Triggers                                                      |
+| tg (Toggle Group) | Yes         | but toggle groups not implemented. Not sure what this is, as toggle groups are presets |
+| mi (unknown) | No          |                                                                                        |

@@ -4,10 +4,22 @@ import json_grammar as jg
 
 
 # The JSON grammar and models for MC6Pro
-# It may apply to other morningstar controllers, but hasn't been tested with them
+# It may apply to other morningstar controllers, but hasn't been tested with them.
 # It is a complete grammar: portions that are not implemented are constants, and
 # if a config includes one of these unimplemented features, it will trigger a
 # grammar error
+
+# Get a byte out of the data array, handling none appropriately, and masking if desired
+def msg_array_data_byte(msg_array_data, byte, mask=None):
+    if msg_array_data is None:
+        val = 0
+    elif msg_array_data[byte] is None:
+        val = 0
+    else:
+        val = msg_array_data[byte]
+    if mask is None:
+        return val
+    return val & mask
 
 
 # Model object for MIDI messages
@@ -20,6 +32,12 @@ class MidiMessage(jg.JsonGrammarModel):
         self.trigger = None
         self.toggle_group = None
 
+    # compare one byte with another, handling none, and masking if desired
+    def eq_helper(self, other, pos, mask=None):
+        self_byte = msg_array_data_byte(self.msg_array_data, pos, mask)
+        other_byte = msg_array_data_byte(other.msg_array_data, pos, mask)
+        return self_byte == other_byte
+
     def __eq__(self, other):
         result = (isinstance(other, MidiMessage) and
                   self.type == other.type and
@@ -29,8 +47,36 @@ class MidiMessage(jg.JsonGrammarModel):
             if self.msg_array_data is None:
                 if other.msg_array_data is not None:
                     result = result and other.msg_array_data[0] is None and other.msg_array_data[1] is None
+            elif other.msg_array_data is None:
+                if self.msg_array_data is not None:
+                    result = result and self.msg_array_data[0] is None and self.msg_array_data[1] is None
             else:
                 result = result and self.msg_array_data[0:2] == other.msg_array_data[0:2]
+        elif self.type == 7:
+            # Message type 7 has some combos that don't make sense, where the MIDI clock is used but BPM is set
+            result = result and self.eq_helper(other, 0)
+            result = result and self.eq_helper(other, 2, 0b11)
+            if msg_array_data_byte(self.msg_array_data, 2, 0b10):
+                result = result and self.eq_helper(other, 1) and self.eq_helper(other, 2, 0b1100)
+        elif self.type == 42:
+            # 42 Trigger Messages can lose messages if they don't exist in the source
+            result = result and self.eq_helper(other, 0) and self.eq_helper(other, 1)
+            result = result and self.eq_helper(other, 2) and self.eq_helper(other, 3)
+            result = result and self.eq_helper(other, 4)
+            self_messages = msg_array_data_byte(self.msg_array_data, 5)
+            other_messages = msg_array_data_byte(other.msg_array_data, 5)
+            while self_messages > 0 and other_messages > 0:
+                if not other_messages & 1:
+                    result = result and not self_messages & 1
+                self_messages >>= 1
+                other_messages >>= 1
+            result = result and self_messages == 0
+        elif self.type in [26, 31]:
+            result = result and self.eq_helper(other, 0)
+            result = result and self.eq_helper(other, 1, 0xf8) and self.eq_helper(other, 2)
+            result = result and self.eq_helper(other, 3) and self.eq_helper(other, 4)
+        elif self.type in [3, 4, 5, 6, 10, 11, 12, 16, 17, 18, 22, 23, 24, 25, 26, 27, 32, 33, 34, 36, 40, 41, 44]:
+            result = result and self.msg_array_data == other.msg_array_data
         else:
             raise jg.JsonGrammarException('not implemented')
         # Debugging: set a breakpoint on the self.modified line to discovery where two items differ
@@ -48,12 +94,14 @@ class Preset(jg.JsonGrammarModel):
         self.long_name = None
         self.name_color = None
         self.name_toggle_color = None
+        self.shifted_name_color = None
         self.background_color = None
         self.background_toggle_color = None
         self.strip_color = None
         self.strip_toggle_color = None
         self.to_toggle = None
         self.toggle_group = None
+        self.to_msg_scroll = None
         self.messages = None
 
     def __eq__(self, other):
@@ -62,6 +110,7 @@ class Preset(jg.JsonGrammarModel):
                   self.toggle_name == other.toggle_name and
                   self.long_name == other.long_name and
                   self.name_color == other.name_color and
+                  self.shifted_name_color == other.shifted_name_color and
                   self.name_toggle_color == other.name_toggle_color and
                   self.background_color == other.background_color and
                   self.background_toggle_color == other.background_toggle_color and
@@ -69,6 +118,7 @@ class Preset(jg.JsonGrammarModel):
                   self.strip_toggle_color == other.strip_toggle_color and
                   self.to_toggle == other.to_toggle and
                   self.toggle_group == other.toggle_group and
+                  self.to_msg_scroll == other.to_msg_scroll and
                   self.messages == other.messages)
         # Debugging: set a breakpoint on the self.modified line to discovery where two items differ
         if not result:
@@ -94,6 +144,7 @@ class Bank(jg.JsonGrammarModel):
         self.clear_toggle = None
         self.messages = None
         self.presets = None
+        self.exp_presets = None
 
     def __eq__(self, other):
         result = (isinstance(other, Bank) and
@@ -105,7 +156,8 @@ class Bank(jg.JsonGrammarModel):
                   self.to_display == other.to_display and
                   self.clear_toggle == other.clear_toggle and
                   self.messages == other.messages and
-                  self.presets == other.presets)
+                  self.presets == other.presets and
+                  self.exp_presets == other.exp_presets)
         # Debugging: set a breakpoint on the self.modified line to discovery where two items differ
         if not result:
             self.modified = True
@@ -115,6 +167,11 @@ class Bank(jg.JsonGrammarModel):
         if self.presets is None:
             self.presets = [None] * 24
         self.presets[pos] = preset
+
+    def set_exp_preset(self, preset, pos):
+        if self.exp_presets is None:
+            self.exp_presets = [None] * 4
+        self.exp_presets[pos] = preset
 
     def set_message(self, message, pos):
         if self.messages is None:
@@ -165,9 +222,12 @@ class MC6Pro(jg.JsonGrammarModel):
         self.midi_channel = None
 
     def __eq__(self, other):
-        result = (self.banks == other.banks and
+        if self.bank_arrangement is None or other.bank_arrangement is None:
+            result = True
+        else:
+            result = self.bank_arrangement == other.bank_arrangement
+        result = (result and self.banks == other.banks and
                   self.midi_channels == other.midi_channels and
-                  self.bank_arrangement == other.bank_arrangement and
                   self.midi_channel == other.midi_channel)
         # Debugging: set a breakpoint on the self.modified line to discovery where two items differ
         if not result:
@@ -202,7 +262,8 @@ def midi_message_cleanup(message, _ctxt, _lp):
 
 msg_array_schema = \
     jg.Dict('Message Array',
-            [jg.Dict.make_key('data', jg.List('Data List', 18, jg.Atom('Data', int, 0), var='msg_array_data')),
+            [jg.Dict.make_key('data',
+                              jg.List('Data List', 18, jg.Atom('Data', int, 0), var='msg_array_data')),
              jg.Dict.make_key('m', jg.Atom('Message Number', int, value=jg.identity)),
              # c is channel
              jg.Dict.make_key('c', jg.Atom('Channel', int, 1, var='channel')),
@@ -215,75 +276,64 @@ msg_array_schema = \
              jg.Dict.make_key('mi', jg.Atom('mi', str, value=''))],
             model=MidiMessage, cleanup=midi_message_cleanup)
 
-preset_array_schema = \
-    jg.Dict('Preset Array',
-            [jg.Dict.make_key('presetNum', jg.identity_atom),
-             jg.Dict.make_key('bankNum', jg.identity2_atom),
-             jg.Dict.make_key('isExp', jg.false_atom),
-             jg.Dict.make_key('shortName', jg.Atom('Short Name', str, 'EMPTY', var='short_name')),
-             jg.Dict.make_key('toggleName', jg.Atom('Toggle Name', str, '', var='toggle_name')),
-             jg.Dict.make_key('longName', jg.Atom('Long Name', str, '', var='long_name')),
-             jg.Dict.make_key('shiftName', jg.empty_atom),
-             jg.Dict.make_key('toToggle', jg.Atom('To Toggle', bool, False, var='to_toggle')),
-             jg.Dict.make_key('toBlink', jg.false_atom),
-             jg.Dict.make_key('toMsgScroll', jg.false_atom),
-             jg.Dict.make_key('toggleGroup', jg.Atom('Toggle Group', int, 0, var='toggle_group')),
-             # the led is the strip at the bottom (top?) of the window
-             jg.Dict.make_key('ledColor', jg.Atom('Strip Color', int, 0, var='strip_color')),
-             jg.Dict.make_key('ledToggleColor', jg.Atom('Strip Toggle Color', int, 0,
-                                                        var='strip_toggle_color')),
-             jg.Dict.make_key('ledShiftColor', jg.zero_atom),
-             jg.Dict.make_key('nameColor', jg.Atom('Name Color', int, 7, var='name_color')),
-             jg.Dict.make_key('nameToggleColor', jg.Atom('Name Toggle Color', int, 7,
-                                                         var='name_toggle_color')),
-             jg.Dict.make_key('nameShiftColor', jg.Atom('Shifted Name Color', int, value=7)),
-             jg.Dict.make_key('backgroundColor', jg.Atom('Background Color', int, 0,
-                                                         var='background_color')),
-             jg.Dict.make_key('toggleBackgroundColor', jg.Atom('Background toggle Color', int, 0,
-                                                               var='background_toggle_color')),
-             jg.Dict.make_key('shiftBackgroundColor', jg.zero_atom),
-             jg.Dict.make_key('msgArray', jg.List('Message List', 32, msg_array_schema,
-                                                  var='messages'))],
-            model=Preset)
 
-exp_preset_array_schema = \
-    jg.Dict('expPresetArray',
-            [jg.Dict.make_key('presetNum', jg.identity_atom),
-             jg.Dict.make_key('bankNum', jg.identity2_atom),
-             jg.Dict.make_key('isExp', jg.true_atom),
-             jg.Dict.make_key('shortName', jg.Atom('Short Name', str, value='EMPTY')),
-             jg.Dict.make_key('toggleName', jg.empty_atom),
-             jg.Dict.make_key('longName', jg.empty_atom),
-             jg.Dict.make_key('shiftName', jg.empty_atom),
-             jg.Dict.make_key('toToggle', jg.false_atom),
-             jg.Dict.make_key('toBlink', jg.false_atom),
-             jg.Dict.make_key('toMsgScroll', jg.false_atom),
-             jg.Dict.make_key('toggleGroup', jg.zero_atom),
-             jg.Dict.make_key('ledColor', jg.zero_atom),
-             jg.Dict.make_key('ledToggleColor', jg.zero_atom),
-             jg.Dict.make_key('ledShiftColor', jg.zero_atom),
-             jg.Dict.make_key('nameColor', jg.Atom('Name Color', int, value=7)),
-             jg.Dict.make_key('nameToggleColor', jg.Atom('Name Toggle Color', int, value=7)),
-             jg.Dict.make_key('nameShiftColor', jg.Atom('Name Shift Color', int, value=7)),
-             jg.Dict.make_key('backgroundColor', jg.zero_atom),
-             jg.Dict.make_key('toggleBackgroundColor', jg.zero_atom),
-             jg.Dict.make_key('shiftBackgroundColor', jg.zero_atom),
-             jg.Dict.make_key('msgArray', jg.List('Message List', 32, msg_array_schema))])
+def mk_preset_array_schema(is_exp):
+    return jg.Dict('Preset Array',
+                   [jg.Dict.make_key('presetNum', jg.identity_atom),
+                    jg.Dict.make_key('bankNum', jg.identity2_atom),
+                    jg.Dict.make_key('isExp', is_exp),
+                    jg.Dict.make_key('shortName', jg.Atom('Short Name', str, 'EMPTY', var='short_name')),
+                    jg.Dict.make_key('toggleName', jg.Atom('Toggle Name', str, '', var='toggle_name')),
+                    jg.Dict.make_key('longName', jg.Atom('Long Name', str, '', var='long_name')),
+                    jg.Dict.make_key('shiftName', jg.empty_atom),
+                    jg.Dict.make_key('toToggle', jg.Atom('To Toggle', bool, False, var='to_toggle')),
+                    jg.Dict.make_key('toBlink', jg.false_atom),
+                    jg.Dict.make_key('toMsgScroll', jg.Atom('Message Scroll', bool, False, var='to_msg_scroll')),
+                    jg.Dict.make_key('toggleGroup', jg.Atom('Toggle Group', int, 0, var='toggle_group')),
+                    # the led is the strip at the bottom (top?) of the window
+                    jg.Dict.make_key('ledColor', jg.Atom('Strip Color', int, 0, var='strip_color')),
+                    jg.Dict.make_key('ledToggleColor', jg.Atom('Strip Toggle Color', int, 0,
+                                                               var='strip_toggle_color')),
+                    jg.Dict.make_key('ledShiftColor', jg.zero_atom),
+                    jg.Dict.make_key('nameColor', jg.Atom('Name Color', int, 7, var='name_color')),
+                    jg.Dict.make_key('nameToggleColor', jg.Atom('Name Toggle Color', int, 7,
+                                                                var='name_toggle_color')),
+                    jg.Dict.make_key('nameShiftColor', jg.Atom('Shifted Name Color', int, 7, var='shifted_name_color')),
+                    jg.Dict.make_key('backgroundColor', jg.Atom('Background Color', int, 0,
+                                                                var='background_color')),
+                    jg.Dict.make_key('toggleBackgroundColor', jg.Atom('Background toggle Color', int, 0,
+                                                                      var='background_toggle_color')),
+                    jg.Dict.make_key('shiftBackgroundColor', jg.zero_atom),
+                    jg.Dict.make_key('msgArray', jg.List('Message List', 32, msg_array_schema,
+                                                         var='messages'))],
+                   model=Preset)
 
+
+preset_array_schema = mk_preset_array_schema(jg.false_atom)
+exp_preset_array_schema = mk_preset_array_schema(jg.true_atom)
 
 bank_array_schema = \
     jg.Dict(
         'bankArray',
         [jg.Dict.make_key('bankNumber', jg.identity_atom),
-         jg.Dict.make_key('bankName', jg.Atom('Bank Name', str, '', var='name')),
-         jg.Dict.make_key('bankClearToggle', jg.Atom('Bank Clear Toggle', bool, False, var='clear_toggle')),
-         jg.Dict.make_key('bankMsgArray', jg.List('Bank Message List', 32, msg_array_schema, var='messages')),
-         jg.Dict.make_key('presetArray', jg.List('Bank Preset List', 24, preset_array_schema, var='presets')),
-         jg.Dict.make_key('expPresetArray', jg.List('Bank Expression Preset List', 4, exp_preset_array_schema)),
-         jg.Dict.make_key('bankDescription', jg.Atom('Bank Description', str, '', var='description')),
-         jg.Dict.make_key('toDisplay', jg.Atom('To Display', bool, False, var='to_display')),
-         jg.Dict.make_key('backgroundColor', jg.Atom('Background Color', int, 127, var='background_color')),
-         jg.Dict.make_key('textColor', jg.Atom('Text Color', int, 127, var='text_color')),
+         jg.Dict.make_key('bankName',
+                          jg.Atom('Bank Name', str, '', var='name')),
+         jg.Dict.make_key('bankClearToggle',
+                          jg.Atom('Bank Clear Toggle', bool, False, var='clear_toggle')),
+         jg.Dict.make_key('bankMsgArray',
+                          jg.List('Bank Message List', 32, msg_array_schema, var='messages')),
+         jg.Dict.make_key('presetArray',
+                          jg.List('Bank Preset List', 24, preset_array_schema, var='presets')),
+         jg.Dict.make_key('expPresetArray',
+                          jg.List('Bank Expression Preset List', 4, exp_preset_array_schema, var='exp_presets')),
+         jg.Dict.make_key('bankDescription',
+                          jg.Atom('Bank Description', str, '', var='description')),
+         jg.Dict.make_key('toDisplay',
+                          jg.Atom('To Display', bool, False, var='to_display')),
+         jg.Dict.make_key('backgroundColor',
+                          jg.Atom('Background Color', int, 127, var='background_color')),
+         jg.Dict.make_key('textColor',
+                          jg.Atom('Text Color', int, 127, var='text_color')),
          jg.Dict.make_key('isColorEnabled', jg.true_atom)],
         model=Bank)
 
@@ -593,5 +643,5 @@ mc6pro_schema = \
              jg.Dict('data',
                      [jg.Dict.make_key('bankArray',
                                        jg.List('Bank List', 128, bank_array_schema, var='banks')),
-                      jg.Dict.make_key('controller_settings', controller_settings_schema)]))],
+                      jg.Dict.make_key('controller_settings', controller_settings_schema, required=False)]))],
         model=MC6Pro)

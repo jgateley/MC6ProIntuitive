@@ -3,6 +3,9 @@ import unittest
 import MC6Pro_grammar
 import MC6Pro_intuitive
 import json_grammar as jg
+from IntuitiveException import IntuitiveException
+import intuitive_message as im
+import intuitive_midi_channel
 
 
 # Model object used for testing
@@ -23,6 +26,50 @@ class Object2ForTests(jg.JsonGrammarModel):
 
     def __eq__(self, other):
         return self.y == other.y and self.modified == other.modified
+
+
+# Switch Models
+class SwitchBaseModel(jg.JsonGrammarModel):
+    def __init__(self):
+        super().__init__('SwitchBaseModel')
+        self.switch_key = None
+        self.switched_model = None
+        self.x = None
+        self.y = None
+
+    def __eq__(self, other):
+        return (self.switch_key == other.switch_key and self.switched_model == other.switched_model and
+                self.x == other.x and self.y == other.y)
+
+
+class SwitchAModel(jg.JsonGrammarModel):
+    def __init__(self):
+        super().__init__('SwitchAModel')
+        self.a1 = None
+        self.a2 = None
+
+    def __eq__(self, other):
+        return self.a1 == other.a1 and self.a2 == other.a2
+
+
+class SwitchBModel(jg.JsonGrammarModel):
+    def __init__(self):
+        super().__init__('SwitchBModel')
+        self.b1 = None
+        self.b2 = None
+
+    def __eq__(self, other):
+        return self.b1 == other.b1 and self.b2 == other.b2
+
+
+class SwitchCModel(jg.JsonGrammarModel):
+    def __init__(self):
+        super().__init__('SwitchCModel')
+        self.c1 = None
+        self.c2 = None
+
+    def __eq__(self, other):
+        return self.c1 == other.c1 and self.c2 == other.c2
 
 
 complete_conf = jg.JsonGrammar(None)
@@ -107,6 +154,18 @@ class ListTestCases(unittest.TestCase):
         self.assertEqual([1, 2, 3], test_list)
 
 
+class ModelTestCases(unittest.TestCase):
+    def test_set_get(self):
+        obj = ObjectForTests()
+        self.assertFalse(obj.modified)
+        self.assertEqual(obj.name, 'ObjectForTests')
+        self.assertIsNone(obj.x)
+        obj.set_var('x', 2, 'error message')
+        self.assertTrue(obj.modified)
+        self.assertEqual(obj.x, 2)
+        self.assertEqual(obj.get_var('x'), 2)
+
+
 # Test the structure of the various grammar elements
 # These are brittle, not the best
 class JsonGrammarElementStructureTestCase(unittest.TestCase):
@@ -151,16 +210,92 @@ class JsonGrammarElementStructureTestCase(unittest.TestCase):
         self.validate_keywords(node, var, model, cleanup)
 
     def test_switch_dict(self):
-        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}),
-                                  'foo', 1, {'a': 1}, [], None, None, None)
-        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, var='x'),
-                                  'foo', 1, {'a': 1}, [], 'x', None, None)
-        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, model=ObjectForTests),
-                                  'foo', 1, {'a': 1}, [], None, ObjectForTests, None)
-        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, var='x', model=ObjectForTests),
-                                  'foo', 1, {'a': 1}, [], 'x', ObjectForTests, None)
-        self.validate_switch_dict(jg.SwitchDict('foo', 1, {'a': 1}, var='x', model=ObjectForTests, cleanup=3),
-                                  'foo', 1, {'a': 1}, [], 'x', ObjectForTests, 3)
+        switch_key = jg.SwitchDict.make_key('x', jg.Enum('enum', ['a', 'b'], 'a'))
+        case_keys = {'a': []}
+        self.validate_switch_dict(jg.SwitchDict('foo', switch_key, case_keys),
+                                  'foo', switch_key, case_keys, [], None, None, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', switch_key, case_keys, var='x'),
+                                  'foo', switch_key, case_keys, [], 'x', None, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', switch_key, case_keys, model=ObjectForTests),
+                                  'foo', switch_key, case_keys, [], None, ObjectForTests, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', switch_key, case_keys, var='x', model=ObjectForTests),
+                                  'foo', switch_key, case_keys, [], 'x', ObjectForTests, None)
+        self.validate_switch_dict(jg.SwitchDict('foo', switch_key, case_keys, var='x', model=ObjectForTests, cleanup=3),
+                                  'foo', switch_key, case_keys, [], 'x', ObjectForTests, 3)
+
+    def test_switch_dict_switch_key_conflict(self):
+        test_switch_enum = jg.Enum('enum', ['a', 'b'], 'a')
+        test_switch_key = jg.SwitchDict.make_key('x', test_switch_enum)
+        test_case_keys = {'a': [jg.SwitchDict.make_key('x', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('y', jg.Atom('atom', int, 2))],
+                          'b': [ListTestCases, jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))]}
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.SwitchDict('test', test_switch_key, test_case_keys)
+        self.assertEqual('class_not_model', context.exception.args[0])
+
+    def test_switch_dict_switch_model(self):
+        test_switch_enum = jg.Enum('enum', ['a', 'b', 'c'], 'a')
+        test_switch_key = jg.SwitchDict.make_key('x', test_switch_enum)
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('a3', jg.Atom('atom', int, 3))],
+                          'b': [ListTestCases, jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                          'c': [jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.SwitchDict('test', test_switch_key, test_case_keys)
+        self.assertEqual('class_not_model', context.exception.args[0])
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('a3', jg.Atom('atom', int, 3))],
+                          'b': [SwitchBModel, jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                          'c': [jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.SwitchDict('test', test_switch_key, test_case_keys)
+        self.assertEqual('case_model_without_var', context.exception.args[0])
+        test_case_keys = {'a': [SwitchAModel, jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('a3', jg.Atom('atom', int, 3))],
+                          'b': [SwitchBModel, jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                SwitchAModel, jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                          'c': [SwitchCModel, jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.SwitchDict('test', test_switch_key, test_case_keys, model_var='x')
+        self.assertEqual('multiple_case_models', context.exception.args[0])
+        test_case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('a3', jg.Atom('atom', int, 3))],
+                          'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                          'c': [jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.SwitchDict('test', test_switch_key, test_case_keys, model_var='x')
+        self.assertEqual('case_var_without_model', context.exception.args[0])
+        test_case_keys = {'a': [SwitchAModel, jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('a3', jg.Atom('atom', int, 3))],
+                          'b': [SwitchBModel, jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                          'c': [SwitchCModel, jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1)),
+                                jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2)),
+                                jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
+        self.assertIsNotNone(jg.SwitchDict('test', test_switch_key, test_case_keys, model_var='x'))
 
     def validate_list(self, node, length, schema, var, model, cleanup):
         self.assertEqual(length, node.length)
@@ -494,8 +629,9 @@ class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
         switch_key = jg.SwitchDict.make_key('x', jg.Enum('Enum', ['a', 'b'], None))
         case_keys = {'a': [jg.SwitchDict.make_key('x', jg.Atom('atom', str, 'z'))],
                      'b': [jg.SwitchDict.make_key('b1', jg.Atom('atom', int))]}
-        test_switch = jg.SwitchDict('foo', switch_key, case_keys)
-        self.run_node_parse_error(test_switch, {'x': 'a', 'a1': 0}, 'dict_duplicate_keys')
+        with self.assertRaises(jg.JsonGrammarException) as context:
+            jg.SwitchDict('foo', switch_key, case_keys)
+        self.assertEqual('switch_key_conflict', context.exception.args[0])
 
         case_keys = {'a': [jg.SwitchDict.make_key('a1', jg.Atom('atom', int, value=0)),
                            jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1))],
@@ -561,6 +697,33 @@ class JsonGrammarSwitchDictNodeParseTestCase(JsonGrammarBaseTestCase):
         test_switch = make_common_switch()
         self.run_node_parse(test_switch, {'switch': 'a', 'a1': 1, 'a2': 2, 'c1': 1, 'c2': 2},
                             None, None)
+
+    def test_switch_models(self):
+        test_switch_enum = jg.Enum('enum', ['a', 'b', 'c'], 'a', var='switch_key')
+        test_switch_key = jg.SwitchDict.make_key('switcher', test_switch_enum)
+        test_common_keys = [jg.SwitchDict.make_key('x', jg.Atom('atom x', int, 1, var='x')),
+                            jg.SwitchDict.make_key('y', jg.Atom('atom y', int, 2, var='y'))]
+        test_case_keys = {'a': [SwitchAModel,
+                                jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1, var='a1')),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2, var='a2'))],
+                          'b': [SwitchBModel,
+                                jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1, var='b1')),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2, var='b2')),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                          'c': [SwitchCModel,
+                                jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1, var='c1')),
+                                jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2, var='c2')),
+                                jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
+        test_switch = jg.SwitchDict('test', test_switch_key, test_case_keys, common_keys=test_common_keys,
+                                    model_var='switched_model', model=SwitchBaseModel)
+        expected = SwitchBaseModel()
+        expected.x = 3
+        expected.y = 4
+        expected.switched_key = 'a'
+        expected.switched_model = SwitchAModel()
+        expected.switched_model.a1 = 3
+        expected.switched_model.a2 = 4
+        self.run_grammar_parse(test_switch, {'switcher': 'a', 'a1': 3, 'a2': 4, 'x': 3, 'y': 4}, expected, expected)
 
 
 class JsonGrammarListNodeParseTestCase(JsonGrammarBaseTestCase):
@@ -866,6 +1029,35 @@ class JsonGrammarSwitchDictNodeGenTestCase(JsonGrammarBaseTestCase):
         test_switch = make_common_switch()
         self.run_node_gen(test_switch, None, {'switch': 'a', 'a1': 1, 'a2': 2, 'c1': 1, 'c2': 2}, None)
 
+    def test_switch_models(self):
+        test_switch_enum = jg.Enum('enum', ['a', 'b', 'c'], 'a', var='switch_key')
+        test_switch_key = jg.SwitchDict.make_key('switcher', test_switch_enum)
+        test_common_keys = [jg.SwitchDict.make_key('x', jg.Atom('atom x', int, 1, var='x')),
+                            jg.SwitchDict.make_key('y', jg.Atom('atom y', int, 2, var='y'))]
+        test_case_keys = {'a': [SwitchAModel,
+                                jg.SwitchDict.make_key('a1', jg.Atom('atom', int, 1, var='a1')),
+                                jg.SwitchDict.make_key('a2', jg.Atom('atom', int, 2, var='a2'))],
+                          'b': [SwitchBModel,
+                                jg.SwitchDict.make_key('b1', jg.Atom('atom', int, 1, var='b1')),
+                                jg.SwitchDict.make_key('b2', jg.Atom('atom', int, 2, var='b2')),
+                                jg.SwitchDict.make_key('b3', jg.Atom('atom', int, 3))],
+                          'c': [SwitchCModel,
+                                jg.SwitchDict.make_key('c1', jg.Atom('atom', int, 1, var='c1')),
+                                jg.SwitchDict.make_key('c2', jg.Atom('atom', int, 2, var='c2')),
+                                jg.SwitchDict.make_key('c3', jg.Atom('atom', int, 3))]}
+        test_switch = jg.SwitchDict('test', test_switch_key, test_case_keys, common_keys=test_common_keys,
+                                    model_var='switched_model', model=SwitchBaseModel)
+        model = SwitchBaseModel()
+        model.x = 3
+        model.y = 4
+        model.switch_key = 'a'
+        model.switched_model = SwitchAModel()
+        model.switched_model.a1 = 3
+        model.switched_model.a2 = 4
+        result1 = {'switcher': 'a', 'a1': 3, 'a2': 4, 'x': 3, 'y': 4}
+        result2 = {'a1': 3, 'a2': 4, 'x': 3, 'y': 4}
+        self.run_node_gen(test_switch, model, result1, result2)
+
 
 class JsonGrammarListNodeGenTestCase(JsonGrammarBaseTestCase):
     def test_list(self):
@@ -1029,8 +1221,8 @@ class JsonGrammarPrintTestCase(unittest.TestCase):
 
 class IntuitiveMessageCatalogTestCase(unittest.TestCase):
     def test_init(self):
-        message1 = MC6Pro_intuitive.IntuitiveMessage.make_bank_jump_message('one', 2, 1, None)
-        message2 = MC6Pro_intuitive.IntuitiveMessage.make_bank_jump_message('two', 1, 2, None)
+        message1 = im.IntuitiveMessage.make_bank_jump_message('one', 2, 1, None)
+        message2 = im.IntuitiveMessage.make_bank_jump_message('two', 1, 2, None)
         messages = [message1, message2]
 
         catalog = MC6Pro_intuitive.MessageCatalog(messages)
@@ -1040,7 +1232,7 @@ class IntuitiveMessageCatalogTestCase(unittest.TestCase):
 
     def test_add(self):
         catalog = MC6Pro_intuitive.MessageCatalog()
-        message = MC6Pro_intuitive.IntuitiveMessage.make_bank_jump_message('one', 2, 1, catalog)
+        message = im.IntuitiveMessage.make_bank_jump_message('one', 2, 1, catalog)
         self.assertEqual('one', message)
         message = catalog.lookup('one')
         message.name = 'two'
@@ -1050,11 +1242,11 @@ class IntuitiveMessageCatalogTestCase(unittest.TestCase):
 class IntuitiveColorsCatalogTestCase(unittest.TestCase):
     def test_init(self):
         colors1 = MC6Pro_intuitive.ColorSchema.make_preset_schema('black', 'lime',
-                                                                  'blue', 'orchid',
+                                                                  'blue', 'orchid', 'green',
                                                                   'yellow', 'gray',
                                                                   name='One')
         colors2 = MC6Pro_intuitive.ColorSchema.make_preset_schema('orange', 'red',
-                                                                  'skyblue', 'olivedrab',
+                                                                  'skyblue', 'olivedrab', 'green',
                                                                   'deeppink', 'mediumslateblue',
                                                                   name='Two')
         colors = [colors1, colors2]
@@ -1066,7 +1258,7 @@ class IntuitiveColorsCatalogTestCase(unittest.TestCase):
     def test_add(self):
         catalog = MC6Pro_intuitive.ColorsCatalog()
         colors1 = MC6Pro_intuitive.ColorSchema.make_preset_schema('black', 'lime',
-                                                                  'blue', 'orchid',
+                                                                  'blue', 'orchid', 'green',
                                                                   'yellow', 'gray',
                                                                   name='One')
         self.assertEqual(catalog.add(colors1), 'One')
@@ -1287,90 +1479,12 @@ class MC6ProColorsInheritanceTestCase(unittest.TestCase):
                           "olive", "indigo")
 
 
-class IntuitiveMidiMessageTestCase(unittest.TestCase):
-    def test_IntuitiveMidiMessage_eq(self):
-        msg1 = MC6Pro_intuitive.IntuitiveMessage()
-        msg2 = MC6Pro_intuitive.IntuitiveMessage()
-
-        msg1.type = "PC"
-        msg2.type = "CC"
-        self.assertFalse(msg1 == msg2)
-
-        msg2.type = "PC"
-        msg1.channel = "channel1"
-        msg2.channel = "channel2"
-        self.assertFalse(msg1 == msg2)
-
-        msg2.channel = "channel1"
-        msg1.number = 1
-        msg2.number = 2
-        self.assertFalse(msg1 == msg2)
-
-        msg1.number = 2
-        self.assertTrue(msg1 == msg2)
-
-        msg1.name = "msg1"
-        msg2.name = "msg2"
-        msg1.value = 1
-        msg2.value = 2
-        msg1.bank = 1
-        msg2.bank = 2
-        self.assertTrue(msg1 == msg2)
-
-        msg1.type = "CC"
-        msg2.type = "CC"
-        msg1.value = 1
-        msg2.value = 2
-        self.assertFalse(msg1 == msg2)
-
-        msg2.value = 1
-        self.assertTrue(msg1 == msg2)
-
-        msg1.value = 1
-        msg1.number = 1
-        msg2.value = 2
-        msg2.number = 2
-
-        msg1.type = "Bank Jump"
-        msg2.type = "Bank Jump"
-        msg1.page = 1
-        msg1.bank = 1
-        msg2.page = 1
-        msg2.bank = 2
-        self.assertFalse(msg1 == msg2)
-
-        msg2.bank = 1
-        msg2.page = 2
-        self.assertFalse(msg1 == msg2)
-
-        msg2.page = 1
-        self.assertTrue(msg1 == msg2)
-
-        msg2.bank = 2
-        msg2.page = 2
-        msg1.type = 'Page Jump'
-        msg2.type = 'Page Jump'
-        self.assertFalse(msg1 == msg2)
-
-        msg2.page = 1
-        self.assertTrue(msg1 == msg2)
-
-        msg1.type = 'Toggle Page'
-        msg2.type = 'Toggle Page'
-        msg1.page_up = True
-        msg2.page_up = False
-        self.assertFalse(msg1 == msg2)
-
-        msg2.page_up = True
-        self.assertTrue(msg1 == msg2)
-
-
 class IntuitiveFromBaseTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(IntuitiveFromBaseTestCase, self).__init__(*args, **kwargs)
         self.midi_channels = []
         for i in range(1, 4):
-            midi_channel = MC6Pro_intuitive.IntuitiveMidiChannel()
+            midi_channel = intuitive_midi_channel.IntuitiveMidiChannel()
             midi_channel.name = 'channel' + str(i)
             self.midi_channels.append(midi_channel)
         self.catalog = MC6Pro_intuitive.MessageCatalog()
@@ -1385,91 +1499,105 @@ class IntuitiveFromBaseTestCase(unittest.TestCase):
 
     @staticmethod
     def mk_message(name, channel, message_type, number, value):
-        message = MC6Pro_intuitive.IntuitiveMessage()
+        message = im.IntuitiveMessage()
         message.name = name
-        message.channel = channel
         message.type = message_type
-        message.number = number
-        message.value = value
+        if message_type == 'PC':
+            message.specific_message = im.PCModel()
+        elif message_type == 'CC':
+            message.specific_message = im.CCModel()
+            message.specific_message.value = value
+        else:
+            raise ValueError('not implemented')
+        message.specific_message.channel = channel
+        message.specific_message.number = number
         return message
 
     def test_intuitive_midi_message(self):
         # Test adding the first MIDI message
         base_message = self.mk_base_method(None, 1, [None, None])
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None, self.midi_channels), "PC:channel1:0")
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None, self.midi_channels), "PC:channel1:0")
         result_message = self.mk_message("PC:channel1:0", 'channel1', 'PC', 0, None)
         result = {"PC:channel1:0": result_message}
         self.assertEqual(self.catalog.catalog, result)
 
         # Test adding a second message
         base_message = self.mk_base_method(1, 2, [0, 0])
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None, self.midi_channels), "CC:channel1:0:0")
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None, self.midi_channels),
+                         "CC:channel1:0:0")
         result_message = self.mk_message("CC:channel1:0:0", 'channel1', 'CC', 0, 0)
         result["CC:channel1:0:0"] = result_message
         self.assertEqual(self.catalog.catalog, result)
 
         # Test adding a third message
         base_message = self.mk_base_method(2, 2, [2, 3])
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None, self.midi_channels), "CC:channel2:2:3")
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None, self.midi_channels),
+                         "CC:channel2:2:3")
         result_message = self.mk_message("CC:channel2:2:3", 'channel2', 'CC', 2, 3)
         result["CC:channel2:2:3"] = result_message
         self.assertEqual(self.catalog.catalog, result)
 
         # Test found under same name, same value
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None, self.midi_channels), "CC:channel2:2:3")
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None, self.midi_channels),
+                         "CC:channel2:2:3")
         self.assertEqual(self.catalog.catalog, result)
 
         # Test found under same name, different value
         self.catalog.catalog["CC:channel2:2:3"] = self.catalog.catalog["CC:channel1:0:0"]
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        with self.assertRaises(MC6Pro_intuitive.IntuitiveException) as context:
-            message.from_base(base_message, self.catalog, None, self.midi_channels)
+        message = im.IntuitiveMessage()
+        with self.assertRaises(IntuitiveException) as context:
+            message.from_base(base_message, None, self.catalog, None, self.midi_channels)
         self.assertEqual(context.exception.args[0], 'name_appears')
 
         # Test found under different name, same value
         base_message = self.mk_base_method(3, 2, [4, 5])
         result_message = self.mk_message("foo", 'channel3', 'CC', 4, 5)
         self.catalog.add(result_message)
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None, self.midi_channels), "foo")
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None, self.midi_channels),
+                         "foo")
 
     def test_different_midi_messages(self):
         # Test PC
         base_message = self.mk_base_method(1, 1, [3])
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None,  self.midi_channels), "PC:channel1:3")
-        self.assertEqual(message.channel, 'channel1')
-        self.assertEqual(message.number, 3)
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None,  self.midi_channels),
+                         "PC:channel1:3")
+        self.assertEqual(message.specific_message.channel, 'channel1')
+        self.assertEqual(message.specific_message.number, 3)
         self.assertEqual(message.type, 'PC')
 
         # Test CC
         base_message = self.mk_base_method(2, 2, [4, 5])
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None, self.midi_channels), "CC:channel2:4:5")
-        self.assertEqual(message.channel, 'channel2')
-        self.assertEqual(message.number, 4)
-        self.assertEqual(message.value, 5)
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None, self.midi_channels),
+                         "CC:channel2:4:5")
+        self.assertEqual(message.specific_message.channel, 'channel2')
+        self.assertEqual(message.specific_message.number, 4)
+        self.assertEqual(message.specific_message.value, 5)
         self.assertEqual(message.type, 'CC')
 
         # Test Bank Jump
         base_message = self.mk_base_method(None, 13, [4, None, 14])
-        message = MC6Pro_intuitive.IntuitiveMessage()
+        message = im.IntuitiveMessage()
         banks = [None, None, None, None, 'Bank 5']
-        self.assertEqual(message.from_base(base_message, self.catalog, banks, self.midi_channels), "Bank Jump:Bank 5:2")
+        self.assertEqual(message.from_base(base_message, None, self.catalog, banks, self.midi_channels),
+                         "Bank Jump:Bank 5:2")
         self.assertEqual(message.type, 'Bank Jump')
-        self.assertEqual(message.bank, 'Bank 5')
-        self.assertEqual(message.page, 2)
+        self.assertEqual(message.specific_message.bank, 'Bank 5')
+        self.assertEqual(message.specific_message.page, 2)
 
         # Test Toggle Page
         base_message = self.mk_base_method(None, 14, [6])
-        message = MC6Pro_intuitive.IntuitiveMessage()
-        self.assertEqual(message.from_base(base_message, self.catalog, None, self.midi_channels), "Page Jump:3")
+        message = im.IntuitiveMessage()
+        self.assertEqual(message.from_base(base_message, None, self.catalog, None, self.midi_channels),
+                         "Page Jump:3")
         self.assertEqual(message.type, 'Page Jump')
-        self.assertEqual(message.page, 3)
+        self.assertEqual(message.specific_message.page, 3)
 
     # No tests written yet
     def test_intuitive_message(self):
@@ -1551,7 +1679,7 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         else:
             self.assertTrue(False, "Unknown type: " + str(type(json1)))
 
-    def process_one_file(self, filename, extension):
+    def process_one_file(self, filename, extension, skip_final=False, setlist=False):
         # Parse the base config file into a base model
         # Convert the base model into an intuitive model
         # Write the intuitive model to an intuitive config file
@@ -1593,6 +1721,8 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
         reloaded_base_model = reloaded_int_model.to_base()
 
         # And compare it to the original config model
+        if setlist:
+            reloaded_base_model.midi_channels = None
         self.assertEqual(reloaded_base_model, orig_base_model)
 
         # Save a new config file
@@ -1608,33 +1738,55 @@ class MC6ProIntuitiveTestCase(unittest.TestCase):
 
         # Make sure the raw json is the same
         # Get rid of fields that complicate things
+        if skip_final:
+            return
         rereloaded_data = rereloaded_base_file.load()
         base_data = base_file.load()
         rereloaded_data['downloadDate'] = ''
         rereloaded_data['hash'] = 0
         base_data['downloadDate'] = ''
         base_data['hash'] = 0
-        # the midi clock output ports only care about the 11 LSBs
-        controller_settings = base_data['data']['controller_settings']['data']['controller_settings']
-        base_midi_clock_output_ports = controller_settings['data']['midiClockOutputPorts']
-        new2_base_midi_clock_output_ports = \
+        if 'controller_settings' in base_data['data']:
+            # the midi clock output ports only care about the 11 LSBs
+            controller_settings = base_data['data']['controller_settings']['data']['controller_settings']
+            base_midi_clock_output_ports = controller_settings['data']['midiClockOutputPorts']
+            new2_base_midi_clock_output_ports = \
+                rereloaded_data['data']['controller_settings']['data']['controller_settings']['data'][
+                    'midiClockOutputPorts']
+            output_ports = base_midi_clock_output_ports & new2_base_midi_clock_output_ports & 2047
+            self.assertEqual(output_ports, 2047)
+            controller_settings['data']['midiClockOutputPorts'] = output_ports
             rereloaded_data['data']['controller_settings']['data']['controller_settings']['data'][
-                'midiClockOutputPorts']
-        output_ports = base_midi_clock_output_ports & new2_base_midi_clock_output_ports & 2047
-        self.assertEqual(output_ports, 2047)
-        controller_settings['data']['midiClockOutputPorts'] = output_ports
-        rereloaded_data['data']['controller_settings']['data']['controller_settings']['data'][
-            'midiClockOutputPorts'] = \
-            output_ports
-
+                'midiClockOutputPorts'] = \
+                output_ports
+        else:
+            rereloaded_data['data'].pop('controller_settings')
         self.same_json(base_data, rereloaded_data, '',
                        ['bankMsgArray', 'sequencer_engines'])
 
-    def test_configs(self):
+    def test_configs_empty(self):
         self.process_one_file("Empty", "yaml")
         self.process_one_file("Empty", "json")
-        self.process_one_file("Features", "yaml")
-        self.process_one_file("Features", "json")
+
+    def test_configs_features(self):
+        self.process_one_file("Features", "yaml", True)
+        self.process_one_file("Features", "json", True)
+
+    def test_configs_MIDIClock(self):
+        self.process_one_file("MIDIClock", "yaml", True)
+        self.process_one_file("MIDIClock", "json", True)
+
+    def test_configs_waveform_sequence(self):
+        self.process_one_file("WaveformSequence", "yaml", True, setlist=True)
+        self.process_one_file("WaveformSequence", "json", True, setlist=True)
+
+    def test_configs_set_toggle(self):
+        self.process_one_file("SetToggle", "yaml")
+        self.process_one_file("Settoggle", "json")
+
+    def test_configs_select_exp_message(self):
+        self.process_one_file("SelectExpMessage", "yaml", setlist=True)
+        self.process_one_file("SelectExpMessage", "json", setlist=True)
 
     def test_demo(self):
         base_conf = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)

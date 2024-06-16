@@ -3,6 +3,9 @@ import copy
 import MC6Pro_grammar
 import semver
 import json_grammar as jg
+from IntuitiveException import IntuitiveException
+import intuitive_message as im
+import intuitive_midi_channel
 
 # This is the intuitive grammar, it is a minimal grammar
 # It also includes to_base and from_base methods, these convert intuitive models to base models
@@ -12,9 +15,9 @@ import json_grammar as jg
 # It is not deeply nested, again for ease of editing
 # MIDI messages are named and are at the top level
 # Naming makes them more intuitive
-# At the top level: they are easily resused
+# At the top level: they are easily reused
 
-intuitive_version = '0.1.2'
+intuitive_version = '0.2.0'
 
 preset_colors = ["black", "lime", "blue", "color3", "yellow", "orchid", "gray", "white",
                  "orange", "red", "skyblue", "deeppink", "olivedrab", "mediumslateblue", "darkgreen", "color15",
@@ -38,16 +41,16 @@ preset_empty_color = preset_colors[0]
 preset_toggle_state = ["one", "two", "both", "shift"]
 preset_toggle_state_default = preset_toggle_state[2]
 
-midi_message_type = ["unused", "PC", "CC", "message3", "message4", "message5", "message6",
-                     "message7", "message8", "message9", "message10", "message11",
-                     "message12", "Bank Jump", "Toggle Page", "Page Jump"]
-midi_message_default = midi_message_type[0]
-
 preset_message_trigger = ["No Action", "Press", "Release", "Long Press", "Long Press Scroll", "Long Press Release",
                           "Release All", "Double Tap", "Double Tap Release", "Long Double Tap",
                           "Long Double Tap Release", "On First Engage", "On First Engage (send only this)",
                           "On Disengage"]
 preset_message_trigger_default = preset_message_trigger[1]
+
+engage_preset_action = ["No Action", "Press", "Release", "Long Press", "Long Press Scroll", "Long Press Release",
+                        "Release All", "Double Tap", "Double Tap Release", "Long Double Tap",
+                        "Long Double Tap Release"]
+engage_preset_action_default = engage_preset_action[0]
 
 bank_message_trigger = ["unused", "On Enter Bank", "On Exit Bank", "On Enter Bank - Execute Once Only",
                         "On Exit Bank - Execute Once Only", "On Enter Bank - Page 1", "On Enter Bank - Page 2",
@@ -56,11 +59,6 @@ bank_message_trigger_default = bank_message_trigger[1]
 
 navigator_mode = ["None", "One Button", "Two Button"]
 navigator_mode_default = "None"
-
-
-class IntuitiveException(Exception):
-    """used for exceptions raised during Intuitive operations"""
-    pass
 
 
 class MessageCatalog:
@@ -115,14 +113,15 @@ class ColorsCatalog:
         self.catalog[schema.name] = schema
         return schema.name
 
-    def add_preset_schema(self, bank_color_schema, name_color, name_toggle_color, background_color,
+    def add_preset_schema(self, bank_color_schema, name_color, name_toggle_color, shifted_name_color, background_color,
                           background_toggle_color):
         name_color = ColorSchema.from_base_preset_color(name_color, False)
         name_toggle_color = ColorSchema.from_base_preset_color(name_toggle_color, False)
+        shifted_name_color = ColorSchema.from_base_preset_color(shifted_name_color, False)
         background_color = ColorSchema.from_base_preset_color(background_color, True)
         background_toggle_color = ColorSchema.from_base_preset_color(background_toggle_color, True)
         schema = ColorSchema.make_preset_schema(bank_color_schema.bank_color, bank_color_schema.bank_background_color,
-                                                name_color, name_toggle_color,
+                                                name_color, name_toggle_color, shifted_name_color,
                                                 background_color, background_toggle_color)
         for other_schema in self.catalog:
             if schema.same_colors(self.catalog[other_schema]):
@@ -183,9 +182,9 @@ class Navigator:
         self.blank_preset = self.mk_preset('', [])
         return_to_home_message = self.mk_bank_jump_message('Home')
         self.return_to_home_preset = self.mk_preset('Home', self.mk_preset_messages(return_to_home_message))
-        self.next_page_message = IntuitiveMessage.make_toggle_page_message('next_page', True, message_catalog)
+        self.next_page_message = im.IntuitiveMessage.make_toggle_page_message('next_page', True, message_catalog)
         self.next_page_preset = self.mk_preset('Next', self.mk_preset_messages(self.next_page_message))
-        self.prev_page_message = IntuitiveMessage.make_toggle_page_message('prev_page', False, message_catalog)
+        self.prev_page_message = im.IntuitiveMessage.make_toggle_page_message('prev_page', False, message_catalog)
         self.prev_page_preset = self.mk_preset('Previous', self.mk_preset_messages(self.prev_page_message))
         self.prev_next_page_preset = self.mk_preset('Previous/Next',
                                                     self.mk_preset_messages(self.prev_page_message,
@@ -196,7 +195,7 @@ class Navigator:
             presets.append(self.blank_preset)
 
     def mk_bank_jump_message(self, bank_name):
-        return IntuitiveMessage.make_bank_jump_message('navigator ' + bank_name, bank_name, 0, self.message_catalog)
+        return im.IntuitiveMessage.make_bank_jump_message('navigator ' + bank_name, bank_name, 0, self.message_catalog)
 
     def mk_preset_messages(self, main_message, second_message=None):
         if isinstance(main_message, IntuitivePresetMessage):
@@ -369,8 +368,8 @@ class ColorSchema(jg.JsonGrammarModel):
         return preset_colors[color]
 
     @staticmethod
-    def make_preset_schema(bank_color, bank_background_color, preset_color, toggle_color, preset_background_color,
-                           toggle_background_color, name=None):
+    def make_preset_schema(bank_color, bank_background_color, preset_color, toggle_color, preset_shifted_color,
+                           preset_background_color, toggle_background_color, name=None):
         schema = ColorSchema()
         if name is not None:
             schema.name = name
@@ -380,6 +379,7 @@ class ColorSchema(jg.JsonGrammarModel):
         schema.preset_background_color = preset_background_color
         schema.preset_toggle_color = toggle_color
         schema.preset_toggle_background_color = toggle_background_color
+        schema.preset_shifted_color = preset_shifted_color
         return schema
 
     def __init__(self):
@@ -391,6 +391,7 @@ class ColorSchema(jg.JsonGrammarModel):
         self.preset_background_color = None
         self.preset_toggle_color = None
         self.preset_toggle_background_color = None
+        self.preset_shifted_color = None
 
     def __eq__(self, other):
         result = isinstance(other, ColorSchema)
@@ -401,6 +402,7 @@ class ColorSchema(jg.JsonGrammarModel):
         result = result and self.preset_background_color == other.preset_background_color
         result = result and self.preset_toggle_color == other.preset_toggle_color
         result = result and self.preset_toggle_background_color == other.preset_toggle_background_color
+        result = result and self.preset_shifted_color == other.preset_shifted_color
         if not result:
             self.modified = True
         return result
@@ -413,6 +415,7 @@ class ColorSchema(jg.JsonGrammarModel):
         result = result and self.preset_background_color == other.preset_background_color
         result = result and self.preset_toggle_color == other.preset_toggle_color
         result = result and self.preset_toggle_background_color == other.preset_toggle_background_color
+        result = result and self.preset_shifted_color == other.preset_shifted_color
         if result:
             self.modified = True
         return result
@@ -435,197 +438,6 @@ class ColorSchema(jg.JsonGrammarModel):
     def from_base_bank(self, bank):
         self.bank_color = self.from_base_bank_color(bank.text_color)
         self.bank_background_color = self.from_base_bank_color(bank.background_color)
-
-
-# MIDI and controller messages are their own top level category, and are named
-# This class is messages, including MIDI messages
-# But also including other messages such as those which control the MC6Pro
-# They can be referenced in banks etc.
-#
-class IntuitiveMessage(jg.JsonGrammarModel):
-
-    @staticmethod
-    def make_bank_jump_message(name, bank, page, message_catalog):
-        result = IntuitiveMessage()
-        result.name = name
-        result.type = 'Bank Jump'
-        result.bank = bank
-        if page is not None and page != 0:
-            result.page = page
-        if message_catalog is not None:
-            return message_catalog.add(result)
-        return result
-
-    @staticmethod
-    def make_toggle_page_message(name, page_up, message_catalog):
-        result = IntuitiveMessage()
-        result.name = name
-        result.type = 'Toggle Page'
-        result.page_up = page_up
-        return message_catalog.add(result)
-
-    def __init__(self):
-        super().__init__('IntuitiveMessage')
-        self.name = None
-        self.channel = None
-        self.type = None
-        self.number = None
-        self.value = None
-        self.bank = None
-        self.page = None
-        self.page_up = None
-
-    def __eq__(self, other):
-        result = isinstance(other, IntuitiveMessage) and self.type == other.type
-        if self.type == 'PC' or self.type == 'CC':
-            result = result and self.channel == other.channel and self.number == other.number
-        if self.type == 'CC':
-            result = result and self.value == other.value
-        if self.type == "Bank Jump":
-            result = result and self.bank == other.bank
-        if self.type == "Bank Jump" or self.type == "Page Jump":
-            result = result and self.page == other.page
-        if self.type == "Toggle Page":
-            result = result and self.page_up == other.page_up
-        if not result:
-            self.modified = True
-        return result
-
-    # From/To Base info
-    # For Bank Jump in the base:
-    #  data[0] is the bank number, base 0
-    #  data[1] should be 0, it is 127 for last used
-    #  data[2] is the page number (6 = 1, 7 = 2, 14 = 3, 15 = 4)
-    # For Toggle Page in the base
-    #  data[0] is the page number (1 = up, 2 = down, 3 = 1, 4 = 2, 5 = 3, 6 = 4
-    # PC takes a number
-    # CC takes a number and a value
-
-    # This creates a name out of the MIDI message parameters
-    def from_base(self, base_message, message_catalog, banks, midi_channels):
-
-        if base_message.type is not None:
-            self.type = midi_message_type[base_message.type]
-        else:
-            raise IntuitiveException('unimplemented', 'Fix me')
-
-        self.name = self.type + ':'
-        if self.type in ['PC', 'CC']:
-            base_channel = base_message.channel
-            if base_channel is None:
-                base_channel = 1
-            base_channel -= 1
-            self.channel = midi_channels[base_channel].name
-            self.name += self.channel + ':'
-
-            if self.type == "PC":
-                if base_message.msg_array_data is None:
-                    self.number = 0
-                else:
-                    self.number = base_message.msg_array_data[0]
-                    if self.number is None:
-                        self.number = 0
-                self.name += str(self.number)
-            elif self.type == 'CC':
-                if base_message.msg_array_data is None:
-                    self.number = 0
-                    self.value = 0
-                else:
-                    self.number = base_message.msg_array_data[0]
-                    if self.number is None:
-                        self.number = 0
-                    self.value = base_message.msg_array_data[1]
-                    if self.value is None:
-                        self.value = 0
-                self.name += str(self.number) + ':' + str(self.value)
-        elif self.type == 'Bank Jump':
-            bank_number = 0
-            if base_message.msg_array_data[0] is not None:
-                bank_number = base_message.msg_array_data[0]
-            self.bank = banks[bank_number]
-            if base_message.msg_array_data[2] == 6:
-                self.page = None
-            elif base_message.msg_array_data[2] == 7:
-                self.page = 1
-            elif base_message.msg_array_data[2] == 14:
-                self.page = 2
-            elif base_message.msg_array_data[2] == 15:
-                self.page = 3
-            else:
-                raise IntuitiveException('missing case', 'missing case')
-            self.name += self.bank + ':'
-            if self.page is not None:
-                self.name += str(self.page)
-            if base_message.msg_array_data[1] is not None:
-                raise IntuitiveException('bad_message', 'data array is nonzero')
-        elif self.type == 'Toggle Page':
-            if base_message.msg_array_data[0] == 1 or base_message.msg_array_data[0] == 2:
-                self.page_up = base_message.msg_array_data[0] == 1
-                if self.page_up:
-                    self.name += " Up"
-                else:
-                    self.name += " Down"
-            else:
-                self.type = "Page Jump"
-                self.name = self.type + ':'
-                self.page = base_message.msg_array_data[0] - 3
-                self.name += str(self.page)
-        else:
-            raise IntuitiveException('unrecognized', 'Invalid message type')
-
-        return message_catalog.add(self)
-
-    # Add the MIDI message directly to the base message
-    def to_base(self, base_message, bank_catalog, midi_channels):
-        base_message.type = midi_message_type.index(self.type)
-        base_message.msg_array_data = [None] * 18
-
-        if self.type in ["PC", "CC"]:
-            base_message.channel = midi_channels.index(self.channel)
-            base_message.channel += 1
-            if base_message.channel == 1:
-                base_message.channel = None
-
-            base_message.msg_array_data[0] = self.number
-            if base_message.msg_array_data[0] == 0:
-                base_message.msg_array_data[0] = None
-
-            if self.type == "CC":
-                base_message.msg_array_data[1] = self.value
-                if base_message.msg_array_data[1] == 0:
-                    base_message.msg_array_data[1] = None
-        elif self.type == 'Bank Jump':
-            base_message.msg_array_data[0] = bank_catalog[self.bank]
-            if base_message.msg_array_data[0] == 0:
-                base_message.msg_array_data[0] = None
-            if self.page == 0 or self.page is None:
-                base_message.msg_array_data[2] = 6
-            elif self.page == 1:
-                base_message.msg_array_data[2] = 7
-            elif self.page == 2:
-                base_message.msg_array_data[2] = 14
-            elif self.page == 3:
-                base_message.msg_array_data[2] = 15
-            else:
-                raise IntuitiveException('invalid_page_number', "Invalid page number in bank jump")
-        elif self.type == "Toggle Page":
-            if self.page_up:
-                base_message.msg_array_data[0] = 1
-            else:
-                base_message.msg_array_data[0] = 2
-        elif self.type == 'Page Jump':
-            base_message.type = midi_message_type.index('Toggle Page')
-            base_message.msg_array_data[0] = self.page + 3
-        else:
-            raise IntuitiveException('unknown_messagetype', "Unknown message type")
-
-        empty = True
-        for elem in base_message.msg_array_data:
-            if elem is not None:
-                empty = False
-                break
-        if empty:
-            base_message.msg_array_data = None
 
 
 # This is the preset component of a MIDI message
@@ -652,7 +464,7 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
             self.modified = True
         return result
 
-    def from_base(self, base_message, message_catalog, bank_catalog, midi_channels):
+    def from_base(self, base_message, base_bank, message_catalog, bank_catalog, midi_channels):
         if base_message.trigger is not None:
             if base_message.trigger == 1:
                 self.trigger = None
@@ -662,11 +474,12 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
             self.trigger = preset_message_trigger[0]
         if base_message.toggle_group is not None:
             self.toggle = preset_toggle_state[base_message.toggle_group]
-        midi_message = IntuitiveMessage()
-        self.midi_message = midi_message.from_base(base_message, message_catalog, bank_catalog, midi_channels)
+        midi_message = im.IntuitiveMessage()
+        self.midi_message = midi_message.from_base(base_message, base_bank, message_catalog, bank_catalog,
+                                                   midi_channels)
 
     # Pull the MIDI message out of the dictionary, then convert it to the base model
-    def to_base(self, message_catalog, bank_catalog, midi_channels):
+    def to_base(self, message_catalog, bank_catalog, midi_channels, intuitive_bank, intuitive_preset):
         base_message = MC6Pro_grammar.MidiMessage()
         if self.trigger is not None:
             base_message.trigger = preset_message_trigger.index(self.trigger)
@@ -676,7 +489,7 @@ class IntuitivePresetMessage(jg.JsonGrammarModel):
             base_message.toggle_group = preset_toggle_state.index(self.toggle)
         if self.midi_message is not None:
             midi_message = message_catalog.lookup(self.midi_message)
-            midi_message.to_base(base_message, bank_catalog, midi_channels)
+            midi_message.to_base(base_message, bank_catalog, midi_channels, intuitive_bank, intuitive_preset)
         return base_message
 
 
@@ -702,7 +515,7 @@ class IntuitiveBankMessage(jg.JsonGrammarModel):
             self.modified = True
         return result
 
-    def from_base(self, base_message, message_catalog, bank_catalog, midi_channels):
+    def from_base(self, base_message, base_bank, message_catalog, bank_catalog, midi_channels):
         if base_message.trigger is not None:
             if base_message.trigger == 1:
                 self.trigger = None
@@ -710,11 +523,12 @@ class IntuitiveBankMessage(jg.JsonGrammarModel):
                 self.trigger = bank_message_trigger[base_message.trigger]
         else:
             self.trigger = bank_message_trigger[0]
-        midi_message = IntuitiveMessage()
-        self.midi_message = midi_message.from_base(base_message, message_catalog, bank_catalog, midi_channels)
+        midi_message = im.IntuitiveMessage()
+        self.midi_message = midi_message.from_base(base_message, base_bank, message_catalog, bank_catalog,
+                                                   midi_channels)
 
     # Pull the MIDI message out of the dictionary, then convert it to the base model
-    def to_base(self, message_catalog, bank_catalog, midi_channels):
+    def to_base(self, message_catalog, bank_catalog, midi_channels, intuitive_bank, intuitive_preset):
         base_message = MC6Pro_grammar.MidiMessage()
         if self.trigger is not None:
             base_message.trigger = bank_message_trigger.index(self.trigger)
@@ -722,7 +536,7 @@ class IntuitiveBankMessage(jg.JsonGrammarModel):
             base_message.trigger = bank_message_trigger.index(bank_message_trigger_default)
         if self.midi_message is not None:
             midi_message = message_catalog.lookup(self.midi_message)
-            midi_message.to_base(base_message, bank_catalog, midi_channels)
+            midi_message.to_base(base_message, bank_catalog, midi_channels, intuitive_bank, intuitive_preset)
         return base_message
 
 
@@ -740,6 +554,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
         self.short_name = None
         self.long_name = None
         self.toggle_name = None
+        self.message_scroll = None
         self.colors = None
         self.strip_color = None
         self.strip_toggle_color = None
@@ -750,7 +565,7 @@ class IntuitivePreset(jg.JsonGrammarModel):
     def __eq__(self, other):
         result = (isinstance(other, IntuitivePreset) and self.short_name == other.short_name and
                   self.long_name == other.long_name and self.toggle_name == other.toggle_name and
-                  self.colors == other.colors and
+                  self.message_scroll == other.message_scroll and self.colors == other.colors and
                   self.strip_color == other.strip_color and self.strip_toggle_color == other.strip_toggle_color and
                   self.toggle_mode == other.toggle_mode and self.toggle_group == other.toggle_group and
                   self.messages == other.messages)
@@ -758,15 +573,17 @@ class IntuitivePreset(jg.JsonGrammarModel):
             self.modified = True
         return result
 
-    def from_base(self, base_preset, message_catalog, colors_catalog, bank_color_schema, bank_catalog, midi_channels):
-        if base_preset.short_name is None:
-            raise IntuitiveException("unimplemented", "preset short name is None")
+    def from_base(self, base_preset, base_bank, message_catalog, colors_catalog, bank_color_schema, bank_catalog,
+                  midi_channels):
         self.short_name = base_preset.short_name
         self.long_name = base_preset.long_name
         self.toggle_name = base_preset.toggle_name
         self.toggle_group = base_preset.toggle_group
+        if base_preset.to_msg_scroll is not None and base_preset.to_msg_scroll:
+            self.message_scroll = "On"
         self.colors = colors_catalog.add_preset_schema(bank_color_schema,
                                                        base_preset.name_color, base_preset.name_toggle_color,
+                                                       base_preset.shifted_name_color,
                                                        base_preset.background_color,
                                                        base_preset.background_toggle_color)
         if base_preset.strip_color is not None:
@@ -779,15 +596,21 @@ class IntuitivePreset(jg.JsonGrammarModel):
             for pos, base_message in enumerate(base_preset.messages):
                 if base_message is not None:
                     self.messages[pos] = IntuitivePresetMessage()
-                    self.messages[pos].from_base(base_message, message_catalog, bank_catalog, midi_channels)
+                    self.messages[pos].from_base(base_message, base_bank, message_catalog, bank_catalog, midi_channels)
             jg.prune_list(self.messages)
+            for message_name in message_catalog.catalog:
+                message = message_catalog.catalog[message_name]
+                if message.type == 'Select Exp Message':
+                    message.specific_message.from_base_cleanup(self.messages)
 
-    def to_base(self, message_catalog, colors_catalog, bank_colors_schema, bank_catalog, midi_channels):
+    def to_base(self, message_catalog, colors_catalog, bank_colors_schema, bank_catalog, midi_channels, intuitive_bank):
         base_preset = MC6Pro_grammar.Preset()
         base_preset.short_name = self.short_name
         base_preset.long_name = self.long_name
         base_preset.toggle_name = self.toggle_name
         base_preset.toggle_group = self.toggle_group
+        if self.message_scroll is not None and self.message_scroll == "On":
+            base_preset.to_msg_scroll = True
         if self.colors is None:
             preset_colors_schema = bank_colors_schema
         else:
@@ -795,6 +618,8 @@ class IntuitivePreset(jg.JsonGrammarModel):
         base_preset.name_color = preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_color, False)
         base_preset.name_toggle_color = (
             preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_toggle_color, False))
+        base_preset.shifted_name_color = (
+            preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_shifted_color, False))
         base_preset.background_color = (
             preset_colors_schema.to_base_preset_color(preset_colors_schema.preset_background_color, True))
         base_preset.background_toggle_color = (
@@ -807,9 +632,15 @@ class IntuitivePreset(jg.JsonGrammarModel):
         if self.messages is not None:
             for pos, message in enumerate(self.messages):
                 if message is not None:
-                    base_message = message.to_base(message_catalog, bank_catalog, midi_channels)
+                    base_message = message.to_base(message_catalog, bank_catalog, midi_channels, intuitive_bank, self)
                     base_preset.set_message(base_message, pos)
         return base_preset
+
+    def lookup_message(self, message_name):
+        for index, message in enumerate(self.messages):
+            if message.midi_message == message_name:
+                return index
+        raise IntuitiveException("message_not_found", "message_not_found")
 
 
 class IntuitiveBank(jg.JsonGrammarModel):
@@ -822,6 +653,7 @@ class IntuitiveBank(jg.JsonGrammarModel):
         self.clear_toggle = None
         self.messages = None
         self.presets = None
+        self.exp_presets = None
 
     def __eq__(self, other):
         result = (isinstance(other, IntuitiveBank) and self.name == other.name and
@@ -830,7 +662,8 @@ class IntuitiveBank(jg.JsonGrammarModel):
                   self.display_description == other.display_description and
                   self.clear_toggle == other.clear_toggle and
                   self.messages == other.messages and
-                  self.presets == other.presets)
+                  self.presets == other.presets and
+                  self.exp_presets == other.exp_presets)
         if not result:
             self.modified = True
         return result
@@ -838,8 +671,6 @@ class IntuitiveBank(jg.JsonGrammarModel):
     def from_base(self, base_bank, message_catalog, colors_catalog, bank_catalog, midi_channels):
         if base_bank.short_name is not None:
             raise IntuitiveException('unimplemented', 'bank short_name')
-        if base_bank.name is None:
-            raise IntuitiveException('missing_bank_name', 'bank has no name')
         self.name = base_bank.name
         self.description = base_bank.description
         color_schema = ColorSchema()
@@ -851,16 +682,32 @@ class IntuitiveBank(jg.JsonGrammarModel):
             for pos, base_message in enumerate(base_bank.messages):
                 if base_message is not None:
                     self.messages[pos] = IntuitiveBankMessage()
-                    self.messages[pos].from_base(base_message, message_catalog, bank_catalog, midi_channels)
+                    self.messages[pos].from_base(base_message, base_bank, message_catalog, bank_catalog, midi_channels)
             jg.prune_list(self.messages)
         if base_bank.presets is not None:
             self.presets = [None] * 24
             for pos, base_preset in enumerate(base_bank.presets):
                 if base_preset is not None:
                     self.presets[pos] = IntuitivePreset()
-                    self.presets[pos].from_base(base_preset, message_catalog, colors_catalog, color_schema,
+                    self.presets[pos].from_base(base_preset, base_bank, message_catalog, colors_catalog, color_schema,
                                                 bank_catalog, midi_channels)
             jg.prune_list(self.presets)
+            for message_name in message_catalog.catalog:
+                message = message_catalog.catalog[message_name]
+                if message.type == "Trigger Messages":
+                    message.specific_message.from_base_cleanup(self.presets)
+        if base_bank.exp_presets is not None:
+            self.exp_presets = [None] * 4
+            for pos, base_preset in enumerate(base_bank.exp_presets):
+                if base_preset is not None:
+                    self.exp_presets[pos] = IntuitivePreset()
+                    self.exp_presets[pos].from_base(base_preset, base_bank, message_catalog, colors_catalog,
+                                                    color_schema, bank_catalog, midi_channels)
+            jg.prune_list(self.exp_presets)
+            for message_name in message_catalog.catalog:
+                message = message_catalog.catalog[message_name]
+                if message.type == "Trigger Messages":
+                    message.specific_message.from_base_cleanup(self.exp_presets)
         self.colors = colors_catalog.add_bank_schema(color_schema)
 
     def to_base(self, message_catalog, colors_catalog, bank_catalog, midi_channels):
@@ -875,35 +722,27 @@ class IntuitiveBank(jg.JsonGrammarModel):
         if self.messages is not None:
             for pos, message in enumerate(self.messages):
                 if message is not None:
-                    base_message = message.to_base(message_catalog, bank_catalog, midi_channels)
+                    base_message = message.to_base(message_catalog, bank_catalog, midi_channels, self, None)
                     base_bank.set_message(base_message, pos)
         if self.presets is not None:
             for pos, preset in enumerate(self.presets):
                 if preset is not None:
                     base_preset = preset.to_base(message_catalog, colors_catalog, bank_colors_schema, bank_catalog,
-                                                 midi_channels)
+                                                 midi_channels, self)
                     base_bank.set_preset(base_preset, pos)
+        if self.exp_presets is not None:
+            for pos, preset in enumerate(self.exp_presets):
+                if preset is not None:
+                    base_preset = preset.to_base(message_catalog, colors_catalog, bank_colors_schema, bank_catalog,
+                                                 midi_channels, self)
+                    base_bank.set_exp_preset(base_preset, pos)
         return base_bank
 
-
-class IntuitiveMidiChannel(jg.JsonGrammarModel):
-    def __init__(self):
-        super().__init__("IntuitiveMidiChannel")
-        self.name = None
-
-    def __eq__(self, other):
-        result = isinstance(other, IntuitiveMidiChannel) and self.name == other.name
-        if not result:
-            self.modified = True
-        return result
-
-    def from_base(self, base_midi_channel):
-        self.name = base_midi_channel.name
-
-    def to_base(self):
-        base_midi_channel = MC6Pro_grammar.MidiChannel()
-        base_midi_channel.name = self.name
-        return base_midi_channel
+    def lookup_preset(self, target_preset):
+        for index, preset in enumerate(self.presets):
+            if preset.short_name == target_preset:
+                return index
+        raise IntuitiveException('preset_not_found', 'Preset not found')
 
 
 class MC6ProIntuitive(jg.JsonGrammarModel):
@@ -939,21 +778,14 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
     # Then process the banks, gathering messages as we go, and handling bank arrangement
     # Then add all the gathered messages
     def from_base(self, base_model):
+        self.midi_channels = [None] * 16
         if base_model.midi_channels is not None:
-            self.midi_channels = []
-            pos = -1
-            for pos in range(15, -1, -1):
+            for pos in range(0, 15):
                 if base_model.midi_channels[pos] is not None:
-                    break
-            for pos2 in range(pos+1):
-                if base_model.midi_channels[pos2] is not None:
-                    self.midi_channels.append(IntuitiveMidiChannel())
-                    self.midi_channels[pos2].from_base(base_model.midi_channels[pos2])
-                else:
-                    self.midi_channels.append(None)
+                    self.midi_channels[pos] = intuitive_midi_channel.IntuitiveMidiChannel()
+                    self.midi_channels[pos].from_base(base_model.midi_channels[pos])
+        jg.prune_list(self.midi_channels)
         if base_model.banks is not None:
-            if base_model.bank_arrangement is None:
-                raise IntuitiveException('bank_arrangement_missing', "missing bank arrangement")
             self.banks = [None] * 128
             self.message_catalog = MessageCatalog()
             self.colors_catalog = ColorsCatalog()
@@ -968,19 +800,23 @@ class MC6ProIntuitive(jg.JsonGrammarModel):
                     self.banks[pos] = IntuitiveBank()
                     self.banks[pos].from_base(bank, self.message_catalog, self.colors_catalog, bank_catalog,
                                               self.midi_channels)
-                    if pos < len(base_model.bank_arrangement) and base_model.bank_arrangement[pos] is None:
-                        raise IntuitiveException('bank_arrangement_mismatch',
-                                                 'have bank but no bank arrangement')
-                    if (pos < len(base_model.bank_arrangement) and
-                            base_model.bank_arrangement[pos].name != self.banks[pos].name):
-                        raise IntuitiveException('bank_order', 'bank and arrangement do not agree on order')
-                elif pos < len(base_model.bank_arrangement) and base_model.bank_arrangement[pos] is not None:
+                    if base_model.bank_arrangement is not None:
+                        if pos < len(base_model.bank_arrangement) and base_model.bank_arrangement[pos] is None:
+                            raise IntuitiveException('bank_arrangement_mismatch',
+                                                     'have bank but no bank arrangement')
+                        if (pos < len(base_model.bank_arrangement) and
+                                base_model.bank_arrangement[pos].name != self.banks[pos].name):
+                            raise IntuitiveException('bank_order', 'bank and arrangement do not agree on order')
+                elif (base_model.bank_arrangement is not None and pos < len(base_model.bank_arrangement) and
+                      base_model.bank_arrangement[pos] is not None):
                     raise IntuitiveException('bank_arrangement_mismatch', 'have bank arrangement but no bank')
             jg.prune_list(self.banks)
             self.colors = self.colors_catalog.to_list()
             self.messages = self.message_catalog.to_list()
         elif base_model.bank_arrangement is not None:
             raise IntuitiveException('banks_missing', 'bank arrangement present but banks missing')
+        if len(self.midi_channels) == 0:
+            self.midi_channels = None
         if base_model.midi_channel is not None:
             self.midi_channel = base_model.midi_channel + 1
 
@@ -1056,7 +892,9 @@ colors_schema = \
                           jg.Enum('Preset Toggle Color', preset_colors, None, var='preset_toggle_color')),
          jg.Dict.make_key('preset_toggle_background_color',
                           jg.Enum('Preset Toggle Background Color', preset_colors, None,
-                                  var='preset_toggle_background_color'))],
+                                  var='preset_toggle_background_color')),
+         jg.Dict.make_key('preset_shifted_color',
+                          jg.Enum('Preset Shifted Color', preset_colors, None, var='preset_shifted_color'))],
         model=ColorSchema)
 
 # MIDI channel grammar, just a name
@@ -1064,29 +902,141 @@ midi_channel_schema = \
     jg.Dict(
         'midi_channel',
         [jg.Dict.make_key('name', jg.Atom('Name', str, '', var='name'))],
-        model=IntuitiveMidiChannel)
-
+        model=intuitive_midi_channel.IntuitiveMidiChannel)
 
 # MIDI message: This is misnamed, should be controller message?
 # It is MIDI messages (PC and CC with one or two values)
 # Or controller messages (Jump Bank or Toggle Page with page and bank values)
 message_switch_key = jg.SwitchDict.make_key('type',
-                                            jg.Enum('Type', midi_message_type, midi_message_default, var='type'))
-message_common_keys = [jg.SwitchDict.make_key('name', jg.Atom('Name', str, '', var='name')),
-                       jg.SwitchDict.make_key('channel',
-                                              jg.Atom('Channel', str, '', var='channel'))]
+                                            jg.Enum('Type', im.intuitive_message_type,
+                                                    im.intuitive_message_default, var='type'))
+message_common_keys = [jg.SwitchDict.make_key('name', jg.Atom('Name', str, '', var='name'))]
 message_case_keys = {
-    'PC': [jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number'))],
-    'CC': [jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number')),
-           jg.SwitchDict.make_key('value', jg.Atom('Value', int, var='value'))],
-    'Bank Jump': [jg.SwitchDict.make_key('bank', jg.Atom('Bank', str, var='bank')),
+    'PC': [im.PCModel,
+           jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number')),
+           jg.SwitchDict.make_key('channel', jg.Atom('Channel', str, '', var='channel'))],
+    'CC': [im.CCModel,
+           jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number')),
+           jg.SwitchDict.make_key('value', jg.Atom('Value', int, var='value')),
+           jg.SwitchDict.make_key('channel', jg.Atom('Channel', str, '', var='channel'))],
+    'PC Multichannel': [im.PCMultichannelModel,
+                        jg.SwitchDict.make_key('multichannel',
+                                               jg.List('Multichannel', 0, jg.Atom('Channel', str),
+                                                       var='channels')),
+                        jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number'))],
+    'Bank Up': [],
+    'Bank Down': [],
+    'Bank Jump': [im.BankJumpModel,
+                  jg.SwitchDict.make_key('bank', jg.Atom('Bank', str, var='bank')),
                   jg.SwitchDict.make_key('page', jg.Atom('Page', int, default=0, var='page'))],
-    'Page Jump': [jg.SwitchDict.make_key('page', jg.Atom('Page', int, var='page'))],
-    'Toggle Page': [jg.SwitchDict.make_key('page_up', jg.Atom('Page Up', bool, var='page_up'))]
+    'Page Jump': [im.PageJumpModel,
+                  jg.SwitchDict.make_key('page', jg.Atom('Page', int, var='page'))],
+    'Toggle Page': [im.TogglePageModel,
+                    jg.SwitchDict.make_key('page_up', jg.Atom('Page Up', bool, var='page_up'))],
+    'Note On': [im.NoteOnModel] +  im.NoteOnModel.get_keys(),
+    'Note Off': [im.NoteOffModel] + im.NoteOffModel.get_keys(),
+    'Real Time': [im.RealTimeModel,
+                  jg.SwitchDict.make_key('real_time',
+                                         jg.Enum('Real Time', im.realtime_message_type, im.realtime_message_default,
+                                                 var='real_time_type'))],
+    'Preset Rename': [im.PresetRenameModel,
+                      jg.SwitchDict.make_key('new_name', jg.Atom('New Name', str, var='new_name'))],
+    'Song Position': [im.SongPositionModel,
+                      jg.SwitchDict.make_key('song_position',
+                                             jg.Atom('Song Position', int, var='song_position'))],
+    'MIDI MMC': [im.MIDIMMCModel,
+                 jg.SwitchDict.make_key('MMC Type',
+                                        jg.Enum('MMC Type', im.midi_mmc_type, im.midi_mmc_default,
+                                                var='midi_mmc_type'))],
+    'MIDI Clock': [im.MIDIClockModel,
+                   jg.SwitchDict.make_key('stop_clock',
+                                          jg.Atom('Stop MIDI Clock', bool, var='stop_clock')),
+                   jg.SwitchDict.make_key('bpm', jg.Atom('BPM', int, 0, var='bpm')),
+                   jg.SwitchDict.make_key('bpm_decimal',
+                                          jg.Enum('BPM Decimal', im.bpm_decimal, im.bpm_decimal_default,
+                                                  var='bpm_decimal'))],
+    'MIDI Clock Tap Menu': [im.MIDIClockTapMenuModel,
+                            jg.SwitchDict.make_key('use_current_bpm',
+                                                   jg.Atom('Use Current BPM', bool, var='use_current_bpm')),
+                            jg.SwitchDict.make_key('bpm', jg.Atom('BPM', int, 0, var='bpm')),
+                            jg.SwitchDict.make_key('bpm_decimal',
+                                                   jg.Enum('BPM Decimal', im.bpm_decimal, im.bpm_decimal_default,
+                                                           var='bpm_decimal'))],
+    'MIDI Clock Tap': [],
+    'Delay': [im.DelayModel,
+              jg.SwitchDict.make_key('delay', jg.Atom('Delay', int, var='delay'))],
+    'Relay Switching': [im.RelaySwitchingModel,
+                        jg.SwitchDict.make_key('relay',
+                                               jg.Enum('Relay', im.relay_type, im.relay_default, var='relay')),
+                        jg.SwitchDict.make_key('tip_action',
+                                               jg.Enum('Tip Action', im.tip_ring_action_type,
+                                                       im.tip_ring_action_default, var='tip_action')),
+                        jg.SwitchDict.make_key('ring_action',
+                                               jg.Enum('Ring Action', im.tip_ring_action_type,
+                                                       im.tip_ring_action_default, var='ring_action'))],
+    'Set MIDI Thru': [im.MIDIThruModel,
+                      jg.SwitchDict.make_key('value',
+                                             jg.Enum('Set MIDI Thru', im.onoff_type, im.onoff_default, var='value'))],
+    'Preset Scroll Message Count': [im.PresetScrollMessageCountModel,
+                                    jg.SwitchDict.make_key('message_count',
+                                                           jg.Atom('Message Count', int, var='message_count'))],
+    'PC Number Scroll': [im.PCNumberScrollModel] + im.PCNumberScrollModel.get_keys(),
+    'CC Value Scroll': [im.CCValueScrollModel] + im.CCValueScrollModel.get_keys(),
+    'PC Number Scroll Update': [im.PCNumberScrollUpdateModel] + im.PCNumberScrollUpdateModel.get_keys(),
+    'CC Value Scroll Update': [im.PCNumberScrollUpdateModel] + im.CCValueScrollUpdateModel.get_keys(),
+    'Bank Change Mode': [],
+    'Stop CC Waveform Generator': [im.StopWaveformModel] + im.StopWaveformModel.get_keys(),
+    'Stop CC Sequence Generator': [im.StopSequenceModel] + im.StopSequenceModel.get_keys(),
+    'Stop All CC Waveform Generator': [im.StopAllWaveformModel],
+    'Stop All CC Sequence Generator': [im.StopAllSequenceModel],
+    'Start CC Waveform Generator': [im.StartWaveformModel] + im.StartWaveformModel.get_keys(),
+    'Start CC Sequence Generator': [im.StartSequenceModel] + im.StartSequenceModel.get_keys(),
+    'Start CC Waveform Generator No MIDI Clock':
+        [im.StartWaveformNoMIDIClockModel] + im.StartWaveformNoMIDIClockModel.get_keys(),
+    'Start CC Sequence Generator No MIDI Clock':
+        [im.StartSequenceNoMIDIClockModel] + im.StartSequenceNoMIDIClockModel.get_keys(),
+    'Engage Preset': [im.EngagePresetModel,
+                      jg.SwitchDict.make_key('bank', jg.Atom('Bank', str, var='bank')),
+                      jg.SwitchDict.make_key('preset', jg.Atom('Preset', str, var='preset')),
+                      jg.SwitchDict.make_key('Action',
+                                             jg.Enum('Action', engage_preset_action, engage_preset_action_default,
+                                                     var='action'))],
+    'Toggle Preset': [],
+    'Set Toggle': [im.SetToggleModel,
+                   jg.SwitchDict.make_key('position',
+                                          jg.Enum('Position', im.set_toggle_type, im.set_toggle_default,
+                                                  var='position')),
+                   jg.SwitchDict.make_key('presets',
+                                          jg.List('Presets', 24, jg.Atom('Preset', str), var='presets'))],
+    'Trigger Messages': [im.TriggerMessagesModel,
+                         jg.SwitchDict.make_key('preset', jg.Atom('Preset', str, var='preset')),
+                         jg.SwitchDict.make_key('messages',
+                                                jg.List('Messages', 32, jg.Atom('Message', str),
+                                                        var='messages'))],
+    'Select Exp Message': [im.SelectExpMessageModel,
+                           jg.SwitchDict.make_key('input', jg.Atom('Input', int, 1, var='input')),
+                           jg.SwitchDict.make_key('messages',
+                                                  jg.List('Messages', 32, jg.Atom('Message', str),
+                                                          var='messages'))],
+    'Looper Mode': [im.LooperModeModel,
+                    jg.SwitchDict.make_key('Mode', jg.Enum('Mode', im.looper_mode, im.looper_mode_default, var='mode')),
+                    jg.SwitchDict.make_key('Selected Switches', jg.Atom('Selected Switches', bool, False,
+                                                                        var='selected_switches')),
+                    jg.SwitchDict.make_key('switches',
+                                           jg.List('Switches', 6, jg.Atom('Switch', str), var='switches')),
+                    jg.SwitchDict.make_key('disable_message',
+                                           jg.Atom('Disable Message', bool, False, var='disable_message'))],
+    'Disengage Looper Mode': [im.DisengageLooperModeModel,
+                              jg.SwitchDict.make_key('disable_message',
+                                                     jg.Atom('Disable Message', bool, False,
+                                                             var='disable_message'))],
+    'SysEx': [im.SysExModel,
+              jg.SwitchDict.make_key('data',
+                                     jg.List('Data', 18, jg.Atom('Data Element', int), var='data'))]
 }
 message_schema = jg.SwitchDict('message_schema', message_switch_key,
                                message_case_keys, message_common_keys,
-                               model=IntuitiveMessage)
+                               model=im.IntuitiveMessage, model_var='specific_message')
 
 # The Preset Message is a preset message, includes trigger and toggle state as well as the included MIDI message
 preset_message_schema = \
@@ -1112,6 +1062,8 @@ preset_schema = \
                               jg.Atom('Toggle Mode', bool, False, var='toggle_mode')),
              jg.Dict.make_key('toggle_group',
                               jg.Atom('Toggle Group', int, 0, var='toggle_group')),
+             jg.Dict.make_key('message_scroll',
+                              jg.Enum('Message Scroll', im.onoff_type, im.onoff_default, var='message_scroll')),
              jg.Dict.make_key('colors',
                               jg.Atom('Colors', str, '', var='colors')),
              jg.Dict.make_key('strip_color',
@@ -1143,7 +1095,8 @@ bank_schema = \
                               jg.Atom('Display Description', bool, False, var='display_description')),
              jg.Dict.make_key('messages',
                               jg.List('Message List', 32, bank_message_schema, var='messages')),
-             jg.Dict.make_key('presets', jg.List('Preset List', 0, preset_schema, var='presets'))],
+             jg.Dict.make_key('presets', jg.List('Preset List', 0, preset_schema, var='presets')),
+             jg.Dict.make_key('exp_presets', jg.List('Exp Preset List', 0, preset_schema, var='exp_presets'))],
             model=IntuitiveBank)
 
 

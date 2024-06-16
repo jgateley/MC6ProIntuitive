@@ -1,4 +1,5 @@
 import copy
+import inspect
 import json
 import yaml
 import re
@@ -14,7 +15,7 @@ import re
 # we will not miss an item
 #
 # For the MC6Pro intuitive file, it is a minimal grammar. Only elements needed are specified. This is much more
-# human readable.
+# human-readable.
 #
 # The grammar provides two operations: parse and gen.
 # Parsing creates a "model" in the theoretical computer science sense - it is a model of what is intended by the JSON
@@ -25,7 +26,7 @@ import re
 # Dictionaries and switch dictionaries have keys that map to elements
 # For complete grammars, all keys must be present
 # For minimal grammars, only non-default keys must be present
-# Switch dictionaries have an switch key which must be an enum, and a set of keys for each enum value.
+# Switch dictionaries have a switch key which must be an enum, and a set of keys for each enum value.
 # This allows a choice mechanism
 # Switch Dicts have an optional set of "common keys" which are common to all switches
 # Lists are fixed length lists, in the minimal grammars, they can be truncated.
@@ -39,7 +40,7 @@ import re
 # A model binding means that model (python class) is used for parsing that element and all subelements
 # A cleanup binding is a function that runs in the parse, after parsing an element, to clean up as needed
 # It is used, for example, in a MIDI message where some of the data is present, but the type is None. It replaces
-# the message with Nonw
+# the message with None
 #
 # Atoms also have optional default and value attributes. The default value is what is normally expected, and is left
 # out when creating a model (only significant information is in the model, even for complete grammars).
@@ -65,6 +66,24 @@ class JsonGrammarModel:
     def __init__(self, name):
         self.modified = False
         self.name = name
+
+    def get_var(self, variable):
+        model_vars = vars(self)
+        if variable not in model_vars:
+            raise JsonGrammarException('model_missing_var', 'In ' + name + ' the model ' + self.name +
+                                       ' is missing the variable ' + variable)
+        return model_vars[variable]
+
+    def set_var(self, variable, result, name):
+        self.modified = True
+        model_vars = vars(self)
+        if variable not in model_vars:
+            raise JsonGrammarException('model_missing_var', 'In ' + name + ' the model ' + self.name +
+                                       ' is missing the variable ' + variable)
+        if model_vars[variable] is not None:
+            raise JsonGrammarException('multiply_assigned_var', 'In ' + name + ' with model ' + self.name +
+                                       ' the variable ' + variable + ' is assigned multiple times')
+        model_vars[variable] = result
 
 
 class JsonGrammarNode:
@@ -97,15 +116,59 @@ class DictBase(JsonGrammarNode):
         super().__init__(name, **kwargs)
 
     @staticmethod
-    def make_key(key_name, key_schema, required=False):
+    def make_key(key_name, key_schema, required=None):
         return {'name': key_name, 'schema': key_schema, 'required': required}
+
+    @staticmethod
+    def lookup_key(key_name, key_list):
+        for potential_match in key_list:
+            if key_name == potential_match['name']:
+                return potential_match['name']
+        return False
 
     @staticmethod
     def check_elem(elem):
         if not isinstance(elem, dict):
             raise JsonGrammarException('type_not_dict', "parse called on non_dict")
 
-    def parse_keys(self, grammar, elem, name, list_pos, model, keys, result, seen_keys):
+    @staticmethod
+    def parse_key(grammar, elem, name, list_pos, model, key, found_keys_name, result, seen_keys):
+        found_keys = 0
+        if key['name'] not in elem:
+            # If 'required' is explicit, that takes precedence
+            # Otherwise it is set to True for complete, false for minimal grammars
+            if key['required'] is None:
+                required = not grammar.minimal
+            else:
+                required = key['required']
+            if not required:
+                key_result = None
+            else:
+                raise JsonGrammarException(
+                    'dict_bad_keys',
+                    "Parse position: " + name + ", error: parse dictionary/switch dictionary expected key: \"" +
+                    key['name'] + "\" but didn't find it in " + str(elem.keys()))
+        else:
+            found_keys = 1
+            found_keys_name.append(key['name'])
+            # Note we update the context with the elem for sub-parsing
+            key_result = grammar.parse(elem[key['name']], key['schema'], name + ':' + key['name'], elem, list_pos,
+                                       model)
+        if key['name'] in seen_keys:
+            raise JsonGrammarException('dict_duplicate_keys', 'grammar has duplicate keys')
+        seen_keys[key['name']] = True
+        # Only store if significant
+        if key_result is not None:
+            if result is None:
+                msg = ('Paring SwitchDict ' + name + ' the key ' + key['name'] +
+                       'returned a result instead of being stored in the switch model')
+                raise JsonGrammarException('switch_model_result', msg)
+            result[key['name']] = key_result
+
+        return found_keys
+
+    def parse_keys(self, grammar, elem, name, list_pos, model, non_model_keys, model_keys, switch_model, result,
+                   seen_keys):
         self.check_elem(elem)
 
         # The list of keys seen ensures we don't allow keys to appear twice
@@ -117,27 +180,12 @@ class DictBase(JsonGrammarNode):
             found_keys_name.append(key)
 
         # process each schema key
-        for key in keys:
-            if key['name'] not in elem:
-                if grammar.minimal and not key['required']:
-                    key_result = None
-                else:
-                    raise JsonGrammarException(
-                        'dict_bad_keys',
-                        "Parse position: " + name + ", error: parse dictionary/switch dictionary expected key: \"" +
-                        key['name'] + "\" but didn't find it in " + str(elem.keys()))
-            else:
-                found_keys += 1
-                found_keys_name.append(key['name'])
-                # Note we update the context with the elem for sub-parsing
-                key_result = grammar.parse(elem[key['name']], key['schema'], name + ':' + key['name'], elem,
-                                           list_pos, model)
-            if key['name'] in seen_keys:
-                raise JsonGrammarException('dict_duplicate_keys', 'grammar has duplicate keys')
-            seen_keys[key['name']] = True
-            # Only store if significant
-            if key_result is not None:
-                result[key['name']] = key_result
+        for key in non_model_keys:
+            found_keys += self.parse_key(grammar, elem, name, list_pos, model, key, found_keys_name, result, seen_keys)
+
+        for key in model_keys:
+            found_keys += self.parse_key(grammar, elem, name, list_pos, switch_model, key, found_keys_name, None,
+                                         seen_keys)
 
         # Make sure all keys in the elem were processed
         if found_keys != len(elem):
@@ -148,7 +196,9 @@ class DictBase(JsonGrammarNode):
             message = 'While parsing ' + name + ' the following keys are undefined: '
             message += ", ".join(missing_keys)
             valid_keys = []
-            for key in keys:
+            for key in non_model_keys:
+                valid_keys.append(key['name'])
+            for key in model_keys:
                 valid_keys.append(key['name'])
             message += "\nThe valid keys are: " + ", ".join(valid_keys)
             raise JsonGrammarException('dict_bad_keys', message)
@@ -156,30 +206,44 @@ class DictBase(JsonGrammarNode):
             return None
         return result
 
+    @staticmethod
+    def gen_key(grammar, model, model_is_dict, key, list_pos, result, variable_result):
+        found_keys = 0
+        if model_is_dict:
+            # Model is a dictionary, look up the key name to get the submodel
+            sub_model = None
+            if key['name'] in model:
+                sub_model = model[key['name']]
+                found_keys = 1
+        else:
+            sub_model = model
+        result[key['name']] = grammar.gen(sub_model, key['schema'], result, list_pos)
+        if result[key['name']] is not None:
+            variable_result[key['name']] = result[key['name']]
+        return found_keys
+
     # gen the keys of a dict or a switch dict
     # found keys is the number of keys found (0 for dicts, 1 for switch dicts, since we found the switch key)
     # the model is either None, a model object, or a dictionary
-    # If none or a object, we pass directly to the sub-gen
+    # If none or an object, we pass directly to the sub-gen
     # If a dictionary we get the key out of the model and use that
     # If an atom uses the context function, keys are added to the context in the order they appear in the schema
     @staticmethod
-    def gen_keys(grammar, model, keys, list_pos, result, variable_result, found_keys):
+    def gen_keys(grammar, model, keys, model_keys, model_var, list_pos, result, variable_result, found_keys):
         model_is_dict = isinstance(model, dict)
         if model is not None and not isinstance(model, JsonGrammarModel) and not model_is_dict:
             raise JsonGrammarException('type_not_dict', "gen called on non dict")
 
         # Determine the model for genning sub elements
-        sub_model = model
+        # sub_model = model
         for key in keys:
-            if model_is_dict:
-                # Model is a dictionary, look up the key name to get the submodel
-                sub_model = None
-                if key['name'] in model:
-                    sub_model = model[key['name']]
-                    found_keys += 1
-            result[key['name']] = grammar.gen(sub_model, key['schema'], result, list_pos)
-            if result[key['name']] is not None:
-                variable_result[key['name']] = result[key['name']]
+            found_keys += DictBase.gen_key(grammar, model, model_is_dict, key, list_pos, result, variable_result)
+
+        if model_var is not None:
+            switched_model = model.get_var(model_var)
+            for key in model_keys:
+                found_keys += DictBase.gen_key(grammar, switched_model, model_is_dict, key, list_pos, result,
+                                               variable_result)
 
         if model_is_dict and found_keys != len(model.keys()):
             raise JsonGrammarException('dict_bad_keys', "gen_dict has unknown key in model")
@@ -197,7 +261,9 @@ class DictBase(JsonGrammarNode):
         if prefix is not None:
             result += prefix + ' '
         result += key['name']
-        if key['required']:
+        if key['required'] is None:
+            result += '(required defaults to grammar)'
+        else:
             result += '(required)'
         result += ":\n"
         result += key['schema'].print(indent + 2)
@@ -220,7 +286,7 @@ class Dict(DictBase):
     # In complete, all keys must appear to be sub-parsed
     # In minimal, keys need not appear, but we must still make sure that all appearing keys are in the grammar
     def parse(self, grammar, elem, name, context, list_pos, model):
-        return super().parse_keys(grammar, elem, name, list_pos, model, self.keys, {}, {})
+        return super().parse_keys(grammar, elem, name, list_pos, model, self.keys, [], None, {}, {})
 
     # generate a dictionary element
     # returns significant keys when minimal, or the entire dict when complete
@@ -229,7 +295,7 @@ class Dict(DictBase):
         variable_result = {}
         found_keys = 0
 
-        return super().gen_keys(grammar, model, self.keys, list_pos, result, variable_result, found_keys)
+        return super().gen_keys(grammar, model, self.keys, [], None, list_pos, result, variable_result, found_keys)
 
     def print(self, indent):
         result = ' ' * indent
@@ -241,13 +307,53 @@ class Dict(DictBase):
 
 
 class SwitchDict(DictBase):
-    def __init__(self, name, switch_key, case_keys, common_keys=None, **kwargs):
+    def __init__(self, name, switch_key, case_keys, common_keys=None, model_var=None, **kwargs):
         super().__init__(name, **kwargs)
+        self.model_var = model_var
         self.switch_key = switch_key
         self.case_keys = case_keys
+        self.case_models = {}
         self.common_keys = common_keys
         if self.common_keys is None:
             self.common_keys = []
+        for case_key in self.case_keys:
+            found_pos = None
+            for pos in range(len(self.case_keys[case_key])):
+                case_sub_key = self.case_keys[case_key][pos]
+                if inspect.isclass(case_sub_key):
+                    if issubclass(case_sub_key, JsonGrammarModel):
+                        if self.model_var is None:
+                            msg = ('The SwitchDict ' + name + ' did not specify a model variable, but case key ' +
+                                   case_key + ' has a model')
+                            raise JsonGrammarException('case_model_without_var', msg)
+                        if found_pos is not None:
+                            msg = ('The SwitchDict ' + name + ' case key ' + case_key +
+                                   ' has multiple case models specified')
+                            raise JsonGrammarException('multiple_case_models', msg)
+                        found_pos = pos
+                        self.case_models[case_key] = case_sub_key
+                    else:
+                        msg = ('The SwitchDict ' + name + ' case key ' + case_key +
+                               'has a class object which is not a model')
+                        raise JsonGrammarException('class_not_model', msg)
+            if found_pos is None:
+                if self.model_var is not None and len(self.case_keys[case_key]) > 0:
+                    msg = 'The SwitchDict ' + name + ' case key ' + case_key + ' has no model'
+                    raise JsonGrammarException('case_var_without_model', msg)
+            else:
+                self.case_keys[case_key].pop(found_pos)
+        switch_key_name = switch_key['name']
+        common_match = self.lookup_key(switch_key_name, self.common_keys)
+        if common_match:
+            msg = ('The SwitchDict ' + name + ' switch key ' + switch_key_name + ' conflicts with a common key ' +
+                   common_match)
+            raise JsonGrammarException('switch_key_conflict', msg)
+        for case_key_name in self.case_keys:
+            case_key_match = self.lookup_key(switch_key_name, self.case_keys[case_key_name])
+            if case_key_match:
+                msg = ('The SwitchDict ' + name + ' switch key ' + switch_key_name + ' conflicts with a case key ' +
+                       case_key_match)
+                raise JsonGrammarException('switch_key_conflict', msg)
 
     # same as parse_dict except
     # we must parse the switch key into a value, even if it is the default
@@ -255,7 +361,10 @@ class SwitchDict(DictBase):
         self.check_elem(elem)
         switch_key = self.switch_key
         if switch_key['name'] not in elem:
-            raise JsonGrammarException('missing_switch', 'missing switch element')
+            msg = ('While parsing ' + name + ', the switch key ' + switch_key['name'] +
+                   ' does not appear in the parsed element.')
+            msg += "\nElement keys are " + ', '.join(elem.keys())
+            raise JsonGrammarException('missing_switch', msg)
         # Figure out what the switch value is
         switch_value = switch_key['schema'].parse(grammar, elem[switch_key['name']], name, None, [], None)
         if switch_value is None:
@@ -263,7 +372,21 @@ class SwitchDict(DictBase):
         if switch_value not in self.case_keys:
             raise JsonGrammarException('bad_switch', 'switch element not in case keys')
         case_keys = self.case_keys[switch_value]
-        all_keys = self.common_keys + case_keys
+
+        if self.model_var is not None:
+            if model is None:
+                raise JsonGrammarException('no_base_model', 'While parsing ' + name +
+                                           ' the SwitchDict has a switch model but there is no enclosing model.')
+            switched_model = None
+            if switch_value in self.case_models:
+                switched_model = self.case_models[switch_value]()
+            model.set_var(self.model_var, switched_model, name)
+            all_keys = self.common_keys
+            switch_model_keys = case_keys
+        else:
+            all_keys = self.common_keys + case_keys
+            switch_model_keys = []
+            switched_model = None
 
         parse_value = grammar.parse(elem[switch_key['name']], switch_key['schema'], name, None, list_pos, model)
         result = {}
@@ -271,7 +394,8 @@ class SwitchDict(DictBase):
             result[switch_key['name']] = parse_value
         seen_keys = {switch_key['name']: True}
 
-        return super().parse_keys(grammar, elem, name, list_pos, model, all_keys, result, seen_keys)
+        return super().parse_keys(grammar, elem, name, list_pos, model, all_keys, switch_model_keys, switched_model,
+                                  result, seen_keys)
 
     # generate a switch key element
     # returns significant keys when minimal, or the entire dict when complete
@@ -296,8 +420,17 @@ class SwitchDict(DictBase):
         if defaulted_switch_value is None:
             defaulted_switch_value = self.switch_key['schema'].default
         if defaulted_switch_value not in self.case_keys:
-            raise JsonGrammarException('switch_dict_bad_switch', 'invalid switch in model')
-        keys = self.case_keys[defaulted_switch_value] + self.common_keys
+            msg = 'In node ' + self.name + "\n"
+            msg += 'The switch value ' + defaulted_switch_value + " is not in the case keys\n"
+            msg += 'Valid case keys are: ' + ', '.join(self.case_keys)
+            raise JsonGrammarException('switch_dict_bad_switch', msg)
+        if self.model_var is None:
+            keys = self.case_keys[defaulted_switch_value] + self.common_keys
+            model_keys = []
+        else:
+            keys = self.common_keys
+            model_keys = self.case_keys[defaulted_switch_value]
+
         result = {}
         variable_result = {}
         if switch_value is not None:
@@ -305,7 +438,8 @@ class SwitchDict(DictBase):
             variable_result = {self.switch_key['name']: switch_value}
         found_keys = 1
 
-        return super().gen_keys(grammar, model, keys, list_pos, result, variable_result, found_keys)
+        return super().gen_keys(grammar, model, keys, model_keys, self.model_var, list_pos, result, variable_result,
+                                found_keys)
 
     def print(self, indent):
         result = ' ' * indent
@@ -374,7 +508,7 @@ class List(JsonGrammarNode):
     # For a minimal grammar, it is only up to the last non-None element
     # For zero length lists, this is only minimal grammar, and only for list models
     # For zero length lists, and non list models, the current behavior is an empty list. I don't have a use case,
-    # so I am not sure this is correct
+    # so I am not sure that this is correct
     # The model can be None, using only defaults
     # The model can be a model, pass through to sub elements
     # The model can be a list, the list elements are used in sub-parsing
@@ -674,14 +808,7 @@ class JsonGrammar:
             result = schema.cleanup(result, context, list_pos)
 
         if schema.variable is not None and result is not None:
-            model.modified = True
-            model_vars = vars(model)
-            if schema.variable not in model_vars:
-                raise JsonGrammarException('model_missing_var', 'In ' + name + ' the model ' + model.name +
-                                           ' is missing the variable ' + schema.variable)
-            if model_vars[schema.variable] is not None:
-                raise JsonGrammarException('multiply_assigned_var', 'Variable is assigned multipe times')
-            model_vars[schema.variable] = result
+            model.set_var(schema.variable, result, name)
             result = None
         return result
 

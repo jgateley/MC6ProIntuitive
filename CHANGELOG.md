@@ -1,5 +1,8 @@
 
 # Change Log
+## [0.2.1] - 2024-09-22
+- Bugfix: prev/next buttons not operating properly in navigator mode
+
 ## [0.2.0] - 2024-06-16
 - Added get/set var methods to JsonGrammarModel
 - Changed dict keys so that on complete models, a key can be marked as not required

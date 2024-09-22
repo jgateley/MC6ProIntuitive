@@ -623,6 +623,12 @@ class PageJumpModel(jg.JsonGrammarModel):
 
 
 class TogglePageModel(jg.JsonGrammarModel):
+    @staticmethod
+    def mk_toggle_page_message(page_up):
+        result = TogglePageModel()
+        result.page_up = page_up
+        return result
+
     def __init__(self):
         super().__init__('TogglePageModel')
         self.page_up = None
@@ -1974,7 +1980,7 @@ class IntuitiveMessage(jg.JsonGrammarModel):
         result = IntuitiveMessage()
         result.name = name
         result.type = 'Toggle Page'
-        result.page_up = page_up
+        result.specific_message = TogglePageModel().mk_toggle_page_message(page_up)
         return message_catalog.add(result)
 
     def __init__(self):

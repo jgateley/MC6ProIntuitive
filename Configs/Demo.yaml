@@ -1,5 +1,5 @@
 # Version, required
-version: 0.2.0
+version: 0.2.1
 # The MIDI channel assigned to the MC6Pro
 midi_channel: 3
 # The list of MIDI channels, the position in the list determines the channel number (1 based)
@@ -49,6 +49,7 @@ messages:
 - {channel: H9, name: H9 Wah BigModdedPlanets, type: PC, number: 6}
 - {channel: H9, name: H9 Wah LessEvenAutoWah, type: PC, number: 7}
 - {channel: H9, name: H9 Wah PhasyWah, type: PC, number: 8}
+- {channel: H9, name: H9 PreludeIntro, type: PC, number: 9}
 - {channel: Timeline, name: Timeline Disable, type: CC, number: 102, value: 0}
 - {channel: Timeline, name: Timeline Enable, type: CC, number: 102, value: 127}
 - {channel: Timeline, name: Timeline Bank 0, type: CC, number: 0, value: 0}
@@ -218,3 +219,14 @@ banks:
 - name: Prelude in C# Minor
   description: Rachmaninoff
   display_description: true
+  presets:
+  - short_name: "1.1"
+    messages:
+    - {midi_message: Iridium Bank 0}
+    - {midi_message: Iridium Clean}
+    - {midi_message: H9 PreludeIntro}
+  - short_name: "1.2"
+    messages:
+    - {midi_message: Iridium Bank 0}
+    - {midi_message: Iridium Burry}
+    - {midi_message: H9 PreludeIntro}

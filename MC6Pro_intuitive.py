@@ -17,7 +17,7 @@ import intuitive_midi_channel
 # Naming makes them more intuitive
 # At the top level: they are easily reused
 
-intuitive_version = '0.2.0'
+intuitive_version = '0.2.1'
 
 preset_colors = ["black", "lime", "blue", "color3", "yellow", "orchid", "gray", "white",
                  "orange", "red", "skyblue", "deeppink", "olivedrab", "mediumslateblue", "darkgreen", "color15",

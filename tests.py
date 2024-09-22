@@ -1649,7 +1649,7 @@ class IntuitiveVersionTestCase(unittest.TestCase):
 
         # This should be done with bumps, once we reach a major version
         with self.assertRaises(jg.JsonGrammarException) as context:
-            MC6Pro_intuitive.version_verify("0.2.1", None, [])
+            MC6Pro_intuitive.version_verify("0.2.0", None, [])
         self.assertEqual('bad_version', context.exception.args[0])
 
 

@@ -1,0 +1,260 @@
+# Version, required
+version: 0.3.1
+# The MIDI channel assigned to the MC6Pro
+midi_channel: 3
+# The list of MIDI channels, the position in the list determines the channel number (1 based)
+midi_channels:
+- name: Iridium
+- name: Scarlett
+- name: MC6Pro
+- name: H9
+- name: Timeline
+- name: Aeros
+# Banks - as a list
+banks:
+- name: Noodling
+  description: A selection of cool guitar sounds
+  display_description: true
+  text: black
+  background: lightyellow
+  messages:
+    - {channel: 4, trigger: On Enter Bank - Execute Once Only, type: CC, number: 0, value: 0}
+    - {channel: 5, trigger: On Enter Bank - Execute Once Only, type: CC, number: 102, value: 127}
+    - {channel: 1, trigger: On Enter Bank - Execute Once Only, type: CC, number: 102, value: 127}
+- name: H9 Chorus
+  description: H9 chorus sounds
+  display_description: true
+  text: black
+  background: lightyellow
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    text: black
+    background: darkgreen
+    text_toggle: white
+    background_toggle: red
+    toggle_mode: true
+    toggle_group: 2
+    messages:
+    - {channel: 4, type: CC, number: 1, value: 0, toggle_state: one}
+    - {channel: 4, type: CC, number: 0, value: 0, toggle_state: two}
+  - short_name: SquareModWah
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 0}
+  - short_name: PhasyChorus
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 1}
+  - short_name: Polymodelicious
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 2}
+- name: H9 Phaser
+  description: 4 phaser sounds
+  display_description: true
+  text: black
+  background: lightyellow
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    text: black
+    background: darkgreen
+    text_toggle: white
+    background_toggle: red
+    toggle_mode: true
+    toggle_group: 2
+    messages:
+    - {channel: 4, type: CC, number: 1, value: 0, toggle_state: one}
+    - {channel: 4, type: CC, number: 0, value: 0, toggle_state: two}
+  - short_name: FunkPhase
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 3}
+  - short_name: SawModPhaser
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 4}
+  - short_name: Vibraphaser
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 5}
+- name: H9 Wah
+  description: 4 wah sounds
+  display_description: true
+  text: black
+  background: lightyellow
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    text: black
+    background: darkgreen
+    text_toggle: white
+    background_toggle: red
+    toggle_mode: true
+    toggle_group: 2
+    messages:
+    - {channel: 4, type: CC, number: 1, value: 0, toggle_state: one}
+    - {channel: 4, type: CC, number: 0, value: 0, toggle_state: two}
+  - short_name: BigModdedPlanets
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 6}
+  - short_name: LessEvenAutoWah
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 7}
+  - short_name: PhasyWah
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 4, type: PC, number: 8}
+- name: Timeline
+  description: Various delay sounds
+  display_description: true
+  text: black
+  background: lightyellow
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    text: black
+    background: darkgreen
+    text_toggle: white
+    background_toggle: red
+    toggle_mode: true
+    toggle_group: 3
+    messages:
+    - {channel: 5, type: CC, number: 102, value: 0, toggle_state: one}
+    - {channel: 5, type: CC, number: 102, value: 127, toggle_state: two}
+  - short_name: Easy Delay
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 5, type: CC, number: 0, value: 0}
+    - {channel: 5, type: PC, number: 100}
+  - short_name: Heavy Delay
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 5, type: CC, number: 0, value: 0}
+    - {channel: 5, type: PC, number: 101}
+- name: Iridium
+  description: Iridium choices
+  display_description: true
+  text: black
+  background: lightyellow
+  presets:
+  - short_name: Enabled
+    toggle_name: Disabled
+    text: black
+    background: darkgreen
+    text_toggle: white
+    background_toggle: red
+    toggle_mode: true
+    toggle_group: 4
+    messages:
+    - {channel: 1, type: CC, number: 102, value: 0, toggle_state: one}
+    - {channel: 1, type: CC, number: 102, value: 127, toggle_state: two}
+  - short_name: Clean
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 1, type: CC, number: 0, value: 0}
+    - {channel: 1, type: PC, number: 0}
+  - short_name: Burry
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 1, type: CC, number: 0, value: 0}
+    - {channel: 1, type: PC, number: 1}
+  - short_name: Distortion
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 1, type: CC, number: 0, value: 0}
+    - {channel: 1, type: PC, number: 2}
+  - short_name: Max Distortion
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 1, type: CC, number: 0, value: 0}
+    - {channel: 1, type: PC, number: 3}
+- name: Aeros Looper
+  description: Aeros Looper config
+  display_description: true
+  text: black
+  background: lightyellow
+  presets:
+  - short_name: Main Click
+    toggle_name: Aux Click
+    text: black
+    background: darkgreen
+    text_toggle: white
+    background_toggle: red
+    toggle_mode: true
+    toggle_group: 4
+    messages:
+    - {channel: 6, type: CC, number: 45, value: 8, toggle_state: one}
+    - {channel: 6, type: CC, number: 45, value: 9, toggle_state: two}
+  - short_name: Adjust Main Click
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 6, type: CC, number: 45, value: 8, toggle_state: one}
+  - short_name: Adjust Toggle Click
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 6, type: CC, number: 45, value: 9, toggle_state: two}
+- name: For What It's Worth
+  description: Crosby, Stills, Nash and Young
+  display_description: true
+  text: black
+  background: lightyellow
+  messages:
+    - {trigger: On Enter Bank, channel: 6, type: CC, number: 0, value: 0}
+    - {trigger: On Enter Bank, channel: 6, type: PC, number: 0}
+- name: Swirling
+  description: The Air Swirls
+  display_description: true
+  text: black
+  background: lightyellow
+  messages:
+    - {trigger: On Enter Bank, channel: 6, type: CC, number: 0, value: 0}
+    - {trigger: On Enter Bank, channel: 6, type: PC, number: 1}
+- name: Saints and Martyrs
+  description: Thanks to Flannery OConnor
+  display_description: true
+  text: black
+  background: lightyellow
+  messages:
+    - {trigger: On Enter Bank, channel: 6, type: CC, number: 0, value: 0}
+    - {trigger: On Enter Bank, channel: 6, type: PC, number: 2}
+- name: Prelude in C# Minor
+  description: Rachmaninoff
+  display_description: true
+  text: black
+  background: lightyellow
+  presets:
+  - short_name: "1.1"
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 1, type: CC, number: 0, value: 0}
+    - {channel: 1, type: PC, number: 0}
+    - {channel: 4, type: PC, number: 9}
+  - short_name: "1.2"
+    text: black
+    background: lightyellow
+    messages:
+    - {channel: 1, type: CC, number: 0, value: 0}
+    - {channel: 1, type: PC, number: 1}
+    - {channel: 4, type: PC, number: 9}

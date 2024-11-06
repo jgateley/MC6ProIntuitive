@@ -1,0 +1,213 @@
+version: 0.3.1
+midi_channel: 3
+
+midi_channels:
+  - name: Iridium
+  - name: Scarlett
+  - name: ''
+  - name: H9
+  - name: Timeline
+  - name: Aeros
+
+banks:
+  - name: Noodling
+    description: A selection of cool guitar sounds
+    text: black
+    background: lightyellow
+    messages:
+      - {trigger: On Enter Bank - Execute Once Only, type: CC, channel: 4, number: 0, value: 0}
+      - {trigger: On Enter Bank - Execute Once Only, type: PC, channel: 4, number: 1}
+      - {trigger: On Enter Bank - Execute Once Only, type: CC, channel: 5, number: 102, value: 127}
+      - {trigger: On Enter Bank - Execute Once Only, type: CC, channel: 5, number: 0, value: 0}
+      - {trigger: On Enter Bank - Execute Once Only, type: PC, channel: 5, number: 100}
+  - name: H9 Chorus
+    description: H9 chorus sounds
+    text: black
+    background: lightyellow
+    presets:
+      - short_name: Enable
+        toggle_name: Bypass
+        toggle_mode: True
+        toggle_group: 4
+        text: black
+        background: darkgreen
+        text_toggle: white
+        background_toggle: red
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 4, number: 0, value: 0}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 4, number: 1, value: 0}
+      - short_name: SquareModWah
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 0}]
+      - short_name: PhasyChorus
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 1}]
+      - short_name: Polymodelicious
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 2}]
+  - name: H9 Phaser
+    description: H9 phaser sounds
+    text: black
+    background: lightyellow
+    presets:
+      - short_name: Enable
+        toggle_name: Bypass
+        toggle_mode: True
+        toggle_group: 4
+        text: black
+        background: darkgreen
+        text_toggle: white
+        background_toggle: red
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 4, number: 0, value: 0}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 4, number: 1, value: 0}
+      - short_name: FunkPhase
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 3}]
+      - short_name: SawModPhaser
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 4}]
+      - short_name: Vibraphaser
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 5}]
+  - name: H9 Wah
+    description: H9 wah sounds
+    text: black
+    background: lightyellow
+    presets:
+      - short_name: Enable
+        toggle_name: Bypass
+        toggle_mode: True
+        toggle_group: 4
+        text: black
+        background: darkgreen
+        text_toggle: white
+        background_toggle: red
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 4, number: 0, value: 0}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 4, number: 1, value: 0}
+      - short_name: BigModdedPlanets
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 6}]
+      - short_name: LessEvenAutoWah
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 7}]
+      - short_name: PhasyWah
+        text: black
+        background: lightyellow
+        messages: [{type: PC, trigger: Press, channel: 4, number: 8}]
+  - name: Timeline
+    description: Various delay sounds
+    text: black
+    background: lightyellow
+    presets:
+      - short_name: Enable
+        toggle_name: Bypass
+        toggle_mode: True
+        toggle_group: 5
+        text: black
+        background: darkgreen
+        text_toggle: white
+        background_toggle: red
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 5, number: 102, value: 127}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 5, number: 1, value: 0}
+      - short_name: Easy Delay
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 5, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 5, number: 100}
+      - short_name: Heavy Delay
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 5, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 5, number: 101}
+  - name: Iridium
+    description: Iridium choices
+    text: black
+    background: lightyellow
+    presets:
+      - short_name: Enable
+        toggle_name: Bypass
+        toggle_mode: True
+        toggle_group: 1
+        text: black
+        background: darkgreen
+        text_toggle: white
+        background_toggle: red
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 1, number: 102, value: 127}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 1, number: 102, value: 0}
+      - short_name: Clean
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 1, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 1, number: 0}
+      - short_name: Burry
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 1, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 1, number: 1}
+      - short_name: Distortion
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 1, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 1, number: 2}
+      - short_name: Max Distortion
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 1, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 1, number: 3}
+  - name: For What It's Worth
+    description: Crosby, Stills, Nash and Young
+    text: black
+    background: lightyellow
+    messages:
+      - {trigger: On Enter Bank, type: CC, channel: 6, number: 0, value: 0}
+      - {trigger: On Enter Bank, type: PC, channel: 6, number: 0}
+  - name: Swirling
+    description: The Air Swirls
+    text: black
+    background: lightyellow
+    messages:
+      - {trigger: On Enter Bank, type: CC, channel: 6, number: 0, value: 0}
+      - {trigger: On Enter Bank, type: PC, channel: 6, number: 1}
+  - name: Saints and Martyrs
+    description: Thanks to Flannery OConnor
+    text: black
+    background: lightyellow
+    messages:
+      - {trigger: On Enter Bank, type: CC, channel: 6, number: 0, value: 0}
+      - {trigger: On Enter Bank, type: PC, channel: 6, number: 2}
+  - name: Prelude in C# Minor
+    description: Rachmaninoff
+    text: black
+    background: lightyellow
+    presets:
+      - short_name: '1.1'
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 1, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 1, number: 0}
+          - {type: PC, trigger: Press, channel: 4, number: 9}
+      - short_name: '1.2'
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 1, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 1, number: 1}

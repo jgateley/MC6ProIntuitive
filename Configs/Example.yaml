@@ -1,0 +1,119 @@
+# System
+# Version must be parsed before anything else, otherwise grammars don't match
+# Navigator values are "One Button", "Two Buttons", or "None" (default)
+system:
+  version: 0.3.1
+  midi_channel: 3
+
+# Color Palettes
+# These are named sets of colors
+# text/background are default for all color fields except the LED field
+# Other fields except for the LED fields are self-explanatory
+# The LED fields are a bar at the top/bottom? of the preset, and must be explicitly specified
+# Certain names have special behaviors:
+# default applies if no other palette specified
+# navigator applies to banks and presets used in navigator mode
+# bypass applies to bypass and enable presets
+palettes:
+  - {name: default, text: black, background: lightyellow}
+  - {name: navigator, text: red, background: yellow}
+  - {name: bypass, text: white, background: red}
+  - name: full
+    text: black
+    background: white
+    bank_text: lightyellow
+    bank_background: red
+    preset_text: yellow
+    preset_background: darkgreen
+    preset_shifted_text: blue
+    preset_shifted_background: forestgreen
+    preset_toggle_text: orchid
+    preset_toggle_background: gray
+    preset_led: olivedrab
+    preset_led_shifted: lightsalmon
+    preset_led_toggle: tomato
+
+# Devices
+# Name, midi channel, and a list of messages
+# Also, an optional enable and bypass message
+# If the enable/bypass message exists, we create a toggle + group
+# Group is require because, for example, the H9 has multiple banks with the toggle, and they should beunited
+# The initial field is the initial messages to be sent on startup
+devices:
+  - name: Simple device with no messages
+    channel: 1
+  - name: Device with just messages
+    channel: 2
+    messages:
+    - {name: Bank 0, type: CC, number: 0, value: 0}
+    - {name: Clean, type: PC, number: 0, setup: Bank 0}
+  - name: Device with messages and enable and bypass
+    channel: 3
+    enable: {type: CC, number: 0, value: 0}
+    bypass: {type: CC, number: 1, value: 0}
+    messages:
+    - {name: Chorus SquareModWah, type: PC, number: 0}
+    - {name: Chorus PhasyChorus, type: PC, number: 1}
+  - name: Device with initial state
+    channel: 4
+    enable: {type: CC, number: 102, value: 127}
+    bypass: {type: CC, number: 102, value: 0}
+    messages:
+    - {name: Bank 0, type: CC, number: 0, value: 0 }
+    - {name: Bank 1, type: CC, number: 0, value: 1 }
+    - {name: Easy Delay, type: PC, number: 100, setup: Bank 0 }
+    - {name: Heavy Delay, type: PC, number: 101, setup: Bank 0 }
+    initial: [Enable, Easy Delay]
+
+# Banks - a list of banks
+# Position in the order is preserved
+# Name is the display name, also used to jump to a bank
+# Description is optional, if present, the description is set and the flag show description is set
+# Actions are a list of actions to execute on entry to the bank
+# Presets are a list of presets
+# A short name and a list of actions (type is vanilla, default)
+# Or it is type bypass and a device name
+# That generates a preset with the short_name Enabled, toggle_name Bypassed, colors bypass, toggle_mode true, and toggle_group
+# generated automatically from the device, and messages from the device
+banks:
+  # A bank with nothing
+  - name: Empty Bank
+    palette: full
+  # A bank with a description
+  - name: Description Bank
+    description: This is a description
+  # The various presets, including bypass
+  - name: Bank with presets
+    presets:
+      - short_name: Preset A
+        actions:
+          - name: Device with just messages Clean
+            trigger: Press
+      - short_name: Preset B
+        actions:
+          - name: Device with just messages Clean
+            trigger: Press
+          - name: Device with messages and enable and bypass Chorus PhasyChorus
+            trigger: Press
+      - type: bypass
+        device: Device with initial state
+      # Preset D: jump tp the first bank (named Empty Bank)
+      - short_name: Preset D
+        actions:
+          - name: Bank Empty Bank
+            trigger: Press
+      # Jump to another bank
+      - short_name: Preset E
+        actions:
+          - name: Bank Bank with actions
+            trigger: Press
+  # A bank with action on entry
+  - name: Bank with actions
+    actions:
+      - name: Device with just messages Clean
+        trigger: On Enter Bank
+    presets:
+      - short_name: Preset A
+        actions:
+          - name: Device with just messages Clean
+            trigger: Press

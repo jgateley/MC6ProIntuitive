@@ -1,0 +1,66 @@
+system:
+  version: 0.3.1
+  midi_channel: 3
+
+# No default palette here
+# Test no colors, bypass, specific, and simple palettes
+palettes:
+  - name: specific
+    text: turquoise
+    background: cadetblue
+    bank_text: steelblue
+    bank_background: lightsteelblue
+    preset_text: tan
+    preset_background: brown
+    preset_shifted_text: cornsilk
+    preset_shifted_background: maroon
+    preset_toggle_text: lavender
+    preset_toggle_background: teal
+    preset_led: darkseagreen
+    preset_led_shifted: forestgreen
+    preset_led_toggle: olive
+  - name: bypass
+    text: indigo
+    background: blueviolet
+    bank_text: thistle
+    bank_background: rebeccapurple
+    preset_text: gold
+    preset_background: salmon
+    preset_shifted_text: firebrick
+    preset_shifted_background: darkred
+    preset_toggle_text: lightpink
+    preset_toggle_background: hotpink
+    preset_led: palevioletred
+    preset_led_shifted: slategray
+    preset_led_toggle: lightgray
+  - name: simple
+    text: lime
+    background: blue
+
+devices:
+  - name: Device
+    channel: 1
+    enable: {type: CC, number: 0, value: 0}
+    bypass: {type: CC, number: 1, value: 1}
+
+banks:
+  # Test no colors
+  - name: No Color Bank
+    presets:
+    - {type: bypass, device: Device}
+    - {short_name: Preset}
+    - {short_name: Preset 2, palette: bypass}
+  # Test specific colors
+  - name: Specific Bank
+    palette: specific
+    presets:
+    - {type: bypass, device: Device}
+    - {short_name: Preset}
+    - {short_name: Preset 2, palette: bypass}
+  # Test bank specific colors
+  - name: Simple Bank
+    palette: simple
+    presets:
+    - {type: bypass, device: Device}
+    - {short_name: Preset}
+    - {short_name: Preset 2, palette: bypass}

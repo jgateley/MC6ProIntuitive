@@ -1,0 +1,73 @@
+version: 0.3.1
+midi_channel: 3
+
+midi_channels:
+  - name: Simple device with no messages
+  - name: Device with just messages
+  - name: Device with messages and enable and bypass
+  - name: Device with initial state
+
+banks:
+  - name: Empty Bank
+    text: lightyellow
+    background: red
+    messages:
+      - {trigger: On Enter Bank - Execute Once Only, type: CC, channel: 4, number: 102, value: 127}
+      - {trigger: On Enter Bank - Execute Once Only, type: CC, channel: 4, number: 0, value: 0}
+      - {trigger: On Enter Bank - Execute Once Only, type: PC, channel: 4, number: 100}
+  - name: Description Bank
+    description: This is a description
+    text: black
+    background: lightyellow
+  - name: Bank with presets
+    text: black
+    background: lightyellow
+    presets:
+      - short_name: Preset A
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 2, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 2, number: 0}
+      - short_name: Preset B
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 2, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 2, number: 0}
+          - {type: PC, trigger: Press, channel: 3, number: 1}
+      - short_name: Device with initial state Enable
+        toggle_name: Device with initial state Bypass
+        text: white
+        background: red
+        text_toggle: white
+        background_toggle: red
+        toggle_mode: True
+        toggle_group: 4
+        messages:
+          - { type: CC, trigger: Press, toggle_state: one, channel: 4, number: 102, value: 127 }
+          - { type: CC, trigger: Press, toggle_state: two, channel: 4, number: 102, value: 0 }
+      - short_name: Preset D
+        text: black
+        background: lightyellow
+        messages:
+          - {type: Bank Jump, trigger: Press, bank: 0}
+      - short_name: Preset E
+        text: black
+        background: lightyellow
+        messages:
+          - {type: Bank Jump, trigger: Press, bank: 3}
+    # A bank with action on entry
+  - name: Bank with actions
+    text: black
+    background: lightyellow
+    messages:
+      - {type: CC, trigger: On Enter Bank, channel: 2, number: 0, value: 0}
+      - {type: PC, trigger: On Enter Bank, channel: 2, number: 0}
+    presets:
+      - short_name: Preset A
+        text: black
+        background: lightyellow
+        messages:
+          - {type: CC, trigger: Press, channel: 2, number: 0, value: 0}
+          - {type: PC, trigger: Press, channel: 2, number: 0}

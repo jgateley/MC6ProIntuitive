@@ -1,0 +1,8 @@
+version: 0.3.1
+midi_channel: 3
+
+midi_channels:
+  - name: Channel 1
+  - name: Channel 2
+  - name: ''
+  - name: Channel 4

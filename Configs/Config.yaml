@@ -1,0 +1,238 @@
+# TODO: Need a message for Aeros to go to home screen or something
+# TODO: do we want the bank or preset actions to default to something other than none? Probably
+# TODO: This would be Press and On Bank Entry
+# System
+# Version must be parsed before anything else, otherwise grammars don't match
+# Navigator values are "One Button", "Two Buttons", or "None" (default)
+system:
+  version: 0.3.1
+  midi_channel: 3
+
+# Color Palettes
+# named sets of colors
+# text/background are default for all color fields except the LED field
+# Other fields except for the LED fields are self-explanatory
+# The LED fields are a bar at the top/bottom? of the preset, and must be explicitly specified
+# Certain names have special behaviors:
+# A palette named default applies if no other palette specified
+# bypass applies to bypass and enable presets
+palettes:
+# Default, used unless something else applies
+- {name: default, text: black, background: lightyellow}
+# A bypass color set for Enable/Bypass toggles
+- name: bypass
+  preset_text: black
+  preset_background: darkgreen
+  preset_toggle_text: white
+  preset_toggle_background: red
+# An example showing different bank and preset colors
+- name: example1
+  bank_text: red
+  bank_background: yellow
+  preset_text: blue
+  preset_background: forestgreen
+
+# Devices
+# Name, midi channel, and a list of messages
+# Also, an optional enable and bypass message
+# If the enable/bypass message exists, we create a toggle + group
+# Group is required because, for example, the H9 has multiple banks with the toggle, and they should be united
+devices:
+  # The Strymon Iridium amp-in-a-pedal
+  - name: Iridium
+    channel: 1
+    enable: {type: CC, number: 102, value: 127}
+    bypass: {type: CC, number: 102, value: 0}
+    messages:
+    - {name: Bank 0, type: CC, number: 0, value: 0}
+    - {name: Clean, type: PC, number: 0, setup: Bank 0}
+    - {name: Burry, type: PC, number: 1, setup: Bank 0}
+    - {name: Distortion, type: PC, number: 2, setup: Bank 0}
+    - {name: Max Distortion, type: PC, number: 3, setup: Bank 0}
+
+  # The Scarlett audio interface, I haven't done much with it yet
+  - name: Scarlett
+    channel: 2
+
+  # The Eventide H9 effects pedal
+  - name: H9
+    channel: 4
+    enable: {type: CC, number: 0, value: 0}
+    bypass: {type: CC, number: 1, value: 0}
+    messages:
+    - {name: Chorus SquareModWah, type: PC, number: 0}
+    - {name: Chorus PhasyChorus, type: PC, number: 1}
+    - {name: Chorus Polymodelicious, type: PC, number: 2}
+    - {name: Phaser FunkPhase, type: PC, number: 3}
+    - {name: Phaser SawModPhaser, type: PC, number: 4}
+    - {name: Phaser Vibraphaser, type: PC, number: 5}
+    - {name: Wah BigModdedPlanets, type: PC, number: 6}
+    - {name: Wah LessEvenAutoWah, type: PC, number: 7}
+    - {name: Wah PhasyWah, type: PC, number: 8}
+    - {name: PreludeIntro, type: PC, number: 9}
+    initial: [Enable, Chorus PhasyChorus]
+
+  # The Strymon Timeline delay pedal
+  - name: Timeline
+    channel: 5
+    enable: {type: CC, number: 102, value: 127}
+    bypass: {type: CC, number: 1, value: 0}
+    messages:
+    - {name: Bank 0, type: CC, number: 0, value: 0 }
+    - {name: Bank 1, type: CC, number: 0, value: 1 }
+    - {name: Easy Delay, type: PC, number: 100, setup: Bank 0 }
+    - {name: Heavy Delay, type: PC, number: 101, setup: Bank 0 }
+    initial: [Enable, Easy Delay]
+
+  # The Aeros Looper pedal
+  - name: Aeros
+    channel: 6
+    messages:
+    - {name: Main Click, type: CC, number: 45, value: 8}
+    - {name: Aux Click, type: CC, number: 45, value: 9}
+    - {name: MSB, type: CC, number: 0, value: 0}
+    - {name: FWIW, type: PC, number: 0, setup: MSB}
+    - {name: Swirling, type: PC, number: 1, setup: MSB}
+    - {name: Saints and Martyrs, type: PC, number: 2, setup: MSB}
+
+# Banks - a list of banks
+# Position in the order is preserved
+# I use the first bank as a navigation bank
+# All other banks have a "return to home" preset
+banks:
+
+# I use the home bank as a navigation bank, it is just a set of "jump to" presets
+- name: Home
+  description: Navigation to other banks
+  presets:
+    - {short_name: Noodling, actions: [{name: Bank Noodling, trigger: Press}]}
+    - {short_name: Bypass, actions: [{name: Bank Bypass, trigger: Press}]}
+    - {short_name: Devices, actions: [{name: Bank Devices, trigger: Press}]}
+    - {short_name: Songs, actions: [{name: Bank Songs, trigger: Press}]}
+
+# The Noodling bank is a collection of my favorite sounds
+- name: Noodling
+  description: A selection of cool guitar sounds
+  presets:
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+# The bypass bank allows enabling/bypassing devices in one convenient location
+- name: Bypass
+  description: Bypass/enable of all devices
+  presets:
+    - {type: bypass, device: H9 }
+    - {type: bypass, device: Timeline }
+    - {type: bypass, device: Iridium}
+    # TODO: I need a "bypass" for the Aeros, to exit a song page
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+# The devices bank is a navigation bank, getting you to individual device control banks
+- name: Devices
+  description: Navigation to Device control pages
+  presets:
+    - {short_name: H9, actions: [{name: Bank H9, trigger: Press}]}
+    - {short_name: Timeline, actions: [{name: Bank Timeline, trigger: Press}]}
+    - {short_name: Iridium, actions: [{name: Bank Iridium, trigger: Press}]}
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+# The songs bank is a navigation bank, getting you to individual song banks
+- name: Songs
+  description: Navigation to Song pages
+  presets:
+    - {short_name: For What It's Worth, actions: [{name: Bank For What It's Worth, trigger: Press}]}
+    - {short_name: Swirling, actions: [{name: Bank Swirling, trigger: Press}]}
+    - {short_name: Saints and Martyrs, actions: [{name: Bank Saints and Martyrs, trigger: Press}]}
+    - {short_name: Prelude in C# Minor, actions: [{ name: Bank Prelude in C# Minor, trigger: Press }]}
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: H9
+  description: Navigation to H9 algorithm groups of sounds
+  presets:
+    - {short_name: H9 Chorus, actions: [{name: Bank H9 Chorus, trigger: Press}]}
+    - {short_name: H9 Phaser, actions: [{name: Bank H9 Phaser, trigger: Press}]}
+    - {short_name: H9 Wah, actions: [{name: Bank H9 Wah, trigger: Press}]}
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: H9 Chorus
+  description: H9 chorus sounds
+  presets:
+# A preset can be a bypass preset, this is type bypass
+# That generates a preset with the short_name Enabled, toggle_name Bypassed, colors bypass, toggle_mode true, and toggle_group
+# generated automatically from the device, and messages from the device
+  - {type: bypass, device: H9}
+  - short_name: SquareModWah
+    actions: [{name: H9 Chorus SquareModWah, trigger: Press}]
+  - short_name: PhasyChorus
+    actions: [{name: H9 Chorus PhasyChorus, trigger: Press}]
+  - short_name: Polymodelicious
+    actions: [{name: H9 Chorus Polymodelicious, trigger: Press}]
+  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: H9 Phaser
+  description: H9 phaser sounds
+  presets:
+  - {type: bypass, device: H9}
+  - short_name: FunkPhase
+    actions: [{name: H9 Phaser FunkPhase, trigger: Press}]
+  - short_name: SawModPhaser
+    actions: [{name: H9 Phaser SawModPhaser, trigger: Press}]
+  - short_name: Vibraphaser
+    actions: [{name: H9 Phaser Vibraphaser, trigger: Press}]
+  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: H9 Wah
+  description: H9 wah sounds
+  presets:
+  - {type: bypass, device: H9}
+  - {short_name: BigModdedPlanets, actions: [{name: H9 Wah BigModdedPlanets, trigger: Press}]}
+  - {short_name: LessEvenAutoWah, actions: [{name: H9 Wah LessEvenAutoWah, trigger: Press}]}
+  - {short_name: PhasyWah, actions: [{name: H9 Wah PhasyWah, trigger: Press}]}
+  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: Timeline
+  description: Various delay sounds
+  presets:
+  - {type: bypass, device: Timeline}
+  - {short_name: Easy Delay, actions: [{name: Timeline Easy Delay, trigger: Press}]}
+  - {short_name: Heavy Delay, actions: [{name: Timeline Heavy Delay, trigger: Press}]}
+  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: Iridium
+  description: Iridium choices
+  presets:
+  - {type: bypass, device: Iridium}
+  - {short_name: Clean, actions: [{name: Iridium Clean, trigger: Press}]}
+  - {short_name: Burry, actions: [{name: Iridium Burry, trigger: Press}]}
+  - {short_name: Distortion, actions: [{name: Iridium Distortion, trigger: Press}]}
+  - {short_name: Max Distortion, actions: [{name: Iridium Max Distortion, trigger: Press}]}
+  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: For What It's Worth
+  description: Crosby, Stills, Nash and Young
+  actions: [{name: Aeros FWIW, trigger: On Enter Bank}]
+  presets:
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: Swirling
+  description: The Air Swirls
+  actions: [{name: Aeros Swirling, trigger: On Enter Bank}]
+  presets:
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: Saints and Martyrs
+  description: Thanks to Flannery OConnor
+  actions: [{name: Aeros Saints and Martyrs, trigger: On Enter Bank}]
+  presets:
+    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+
+- name: Prelude in C# Minor
+  description: Rachmaninoff
+  presets:
+  - short_name: "1.1"
+    actions:
+      - {name: Iridium Clean, trigger: Press}
+      - {name: H9 PreludeIntro, trigger: Press}
+  - short_name: "1.2"
+    actions:
+      - {name: Iridium Burry, trigger: Press}
+  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}

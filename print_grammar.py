@@ -1,30 +1,27 @@
-# The script for handling config/backup files
-# There are two modes
-#
-# Base To Intuitive:
-# This mode is intended to be used once, to convert your existing config to an Intuitive config
-# The MIDI message names are not intuitive and should be edited
-#
-# Intuitive to Base (the default):
-# This mode is used after an intuitive config file is changed
-# It generates a new base file, which can then be restored to the controller
+# Print the grammars
 
 import argparse
-import json_grammar as jg
-import MC6Pro_grammar
-import MC6Pro_intuitive
+import grammar as jg
+import backup_grammar
+import simple_grammar
+import intuitive_grammar
 
 if __name__ == '__main__':
 
-    base_conf = jg.JsonGrammar(MC6Pro_grammar.mc6pro_schema)
-    base_grammar = base_conf.print()
-    intuitive_conf = jg.JsonGrammar(MC6Pro_intuitive.mc6pro_intuitive_schema, minimal=True)
-    intuitive_grammar = intuitive_conf.print()
+    backup_conf = jg.Grammar(backup_grammar.backup_schema)
+    backup_grammar_obj = backup_conf.print()
+    simple_conf = jg.Grammar(simple_grammar.simple_schema, minimal=True)
+    simple_grammar_text = simple_conf.print()
+    config_conf = jg.Grammar(intuitive_grammar.intuitive_schema, minimal=True)
+    config_grammar = simple_conf.print()
 
-    base_dest = "tmp/base_grammar.txt"
-    intuitive_dest = "tmp/intuitive_grammar.txt"
+    backup_dest = "tmp/backup_grammar.txt"
+    simple_dest = "tmp/intuitive_grammar.txt"
+    config_dest = "tmp/config_grammar.txt"
 
-    with open(base_dest, "w") as write_file:
-        print(base_grammar, file=write_file)
-    with open(intuitive_dest, "w") as write_file:
-        print(intuitive_grammar, file=write_file)
+    with open(backup_dest, "w") as write_file:
+        print(backup_grammar_obj, file=write_file)
+    with open(simple_dest, "w") as write_file:
+        print(simple_grammar_text, file=write_file)
+    with open(config_dest, "w") as write_file:
+        print(config_grammar, file=write_file)

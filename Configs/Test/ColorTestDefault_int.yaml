@@ -1,0 +1,64 @@
+version: 0.3.1
+midi_channel: 3
+
+midi_channels:
+  - name: Device
+
+banks:
+  - name: Default Bank
+    text: yellow
+    background: orchid
+    presets:
+      - short_name: Device Enable
+        toggle_name: Device Bypass
+        toggle_mode: True
+        toggle_group: 1
+        text: gold
+        background: salmon
+        text_toggle: lightpink
+        background_toggle: hotpink
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 1, number: 0, value: 0}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 1, number: 1, value: 1}
+      - short_name: Preset
+        text: gray
+        background: orange
+  - name: Specific Bank
+    text: steelblue
+    background: lightsteelblue
+    presets:
+      - short_name: Device Enable
+        toggle_name: Device Bypass
+        toggle_mode: True
+        toggle_group: 1
+        text: gold
+        background: salmon
+        text_toggle: lightpink
+        background_toggle: hotpink
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 1, number: 0, value: 0}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 1, number: 1, value: 1}
+      - short_name: Preset
+        text: tan
+        background: brown
+      - short_name: Preset 2
+        text: gold
+        background: salmon
+  - name: Simple Bank
+    text: lime
+    background: blue
+    presets:
+      - short_name: Device Enable
+        toggle_name: Device Bypass
+        toggle_mode: True
+        toggle_group: 1
+        text: gold
+        background: salmon
+        text_toggle: lightpink
+        background_toggle: hotpink
+        messages:
+          - {type: CC, trigger: Press, toggle_state: one, channel: 1, number: 0, value: 0}
+          - {type: CC, trigger: Press, toggle_state: two, channel: 1, number: 1, value: 1}
+      - short_name: Preset
+        text: lime
+        background: blue

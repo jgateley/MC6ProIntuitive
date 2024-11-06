@@ -1,5 +1,20 @@
 
 # Change Log
+## [0.3.1] - 2024-11-5
+- Major refactor.
+- Intuitive is now based on use cases, not many features
+- Simple is now a human readable version of the backup file
+- Renamed JsonGrammar to Grammar, NFC
+- Renamed base/grammar to backup, NFC
+- Renamed intuitive to simple, NFC
+- Config mode is mostly complete
+
+## [0.3.0] - 2024-09-22
+- Removed a lot of functionality from Intuitive mode. It now corresponds much more closely to the backup config
+- Created a new Config mode, a completely re-thought-out version of the old Intuitive mode
+- Intuitive mode is still bidirectional with backup config, this is much more useful as it is closer to a 1-1 correspondence
+- The new config mode is unidirectional - it maps to the intuitive mode
+
 ## [0.2.1] - 2024-09-22
 - Bugfix: prev/next buttons not operating properly in navigator mode
 

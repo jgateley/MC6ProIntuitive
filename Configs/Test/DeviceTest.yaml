@@ -1,0 +1,11 @@
+system:
+  version: 0.3.1
+  midi_channel: 3
+
+devices:
+  - name: Channel 4
+    channel: 4
+  - name: Channel 2
+    channel: 2
+  - name: Channel 1
+    channel: 1

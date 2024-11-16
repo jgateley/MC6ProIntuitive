@@ -1,11 +1,12 @@
-# TODO: Need a message for Aeros to go to home screen or something
-# TODO: do we want the bank or preset actions to default to something other than none? Probably
-# TODO: This would be Press and On Bank Entry
+# TODO: Make a device definition section, you can have more than 1 device of the same type
+# TODO: Initial state for enable/bypass is screwed up
+
+
 # System
 # Version must be parsed before anything else, otherwise grammars don't match
 # Navigator values are "One Button", "Two Buttons", or "None" (default)
 system:
-  version: 0.3.1
+  version: 0.3.2
   midi_channel: 3
 
 # Color Palettes
@@ -18,19 +19,17 @@ system:
 # bypass applies to bypass and enable presets
 palettes:
 # Default, used unless something else applies
-- {name: default, text: black, background: lightyellow}
+- {name: default, text: white, background: black}
 # A bypass color set for Enable/Bypass toggles
 - name: bypass
   preset_text: black
-  preset_background: darkgreen
-  preset_toggle_text: white
+  preset_background: green
+  preset_toggle_text: black
   preset_toggle_background: red
-# An example showing different bank and preset colors
-- name: example1
-  bank_text: red
-  bank_background: yellow
-  preset_text: blue
-  preset_background: forestgreen
+# Navigation colors
+- name: navigation
+  text: blue
+  background: black
 
 # Devices
 # Name, midi channel, and a list of messages
@@ -44,11 +43,98 @@ devices:
     enable: {type: CC, number: 102, value: 127}
     bypass: {type: CC, number: 102, value: 0}
     messages:
+    # If you use presets. However, these are fragile
     - {name: Bank 0, type: CC, number: 0, value: 0}
-    - {name: Clean, type: PC, number: 0, setup: Bank 0}
-    - {name: Burry, type: PC, number: 1, setup: Bank 0}
-    - {name: Distortion, type: PC, number: 2, setup: Bank 0}
-    - {name: Max Distortion, type: PC, number: 3, setup: Bank 0}
+    - {name: Clean Preset, type: PC, number: 0, setup: Bank 0}
+    - {name: Burry Preset, type: PC, number: 1, setup: Bank 0}
+    - {name: Distortion Preset, type: PC, number: 2, setup: Bank 0}
+    - {name: Max Distortion Preset, type: PC, number: 3, setup: Bank 0}
+    # Choose the amp type
+    - {name: Deluxe Reverb, type: CC, number: 19, value: 1}
+    - {name: AC30, type: CC, number: 19, value: 2}
+    - {name: Plexi, type: CC, number: 19, value: 3}
+    # Choose the speaker cabinet
+    - {name: Cab Deluxe Reverb, type: CC, number: 20, value: 0}
+    - {name: Cab Blues Junior, type: CC, number: 20, value: 1}
+    - {name: Cab Vibrolux, type: CC, number: 20, value: 2}
+    - {name: Cab AC30, type: CC, number: 20, value: 3}
+    - {name: Cab Custom Celestion, type: CC, number: 20, value: 4}
+    - {name: Cab Mesa Boogie, type: CC, number: 20, value: 5}
+    - {name: Cab Celestion G12, type: CC, number: 20, value: 6}
+    - {name: Cab Celestion Vintage, type: CC, number: 20, value: 7}
+    - {name: Cab Celestion T652, type: CC, number: 20, value: 8}
+    # Drive/Level
+    - {name: Level0, type: CC, number: 12, value: 0}
+    - {name: Level1, type: CC, number: 12, value: 16}
+    - {name: Level2, type: CC, number: 12, value: 32}
+    - {name: Level3, type: CC, number: 12, value: 48}
+    - {name: Level4, type: CC, number: 12, value: 64}
+    - {name: Level5, type: CC, number: 12, value: 80}
+    - {name: Level6, type: CC, number: 12, value: 96}
+    - {name: Level7, type: CC, number: 12, value: 112}
+    - {name: Level8, type: CC, number: 12, value: 127}
+    - {name: Drive0, type: CC, number: 13, value: 0}
+    - {name: Drive1, type: CC, number: 13, value: 16}
+    - {name: Drive2, type: CC, number: 13, value: 32}
+    - {name: Drive3, type: CC, number: 13, value: 48}
+    - {name: Drive4, type: CC, number: 13, value: 64}
+    - {name: Drive5, type: CC, number: 13, value: 80}
+    - {name: Drive6, type: CC, number: 13, value: 96}
+    - {name: Drive7, type: CC, number: 13, value: 112}
+    - {name: Drive8, type: CC, number: 13, value: 127}
+    # Bass
+    - {name: Bass0, type: CC, number: 14, value: 0}
+    - {name: Bass1, type: CC, number: 14, value: 16}
+    - {name: Bass2, type: CC, number: 14, value: 32}
+    - {name: Bass3, type: CC, number: 14, value: 48}
+    - {name: Bass4, type: CC, number: 14, value: 64}
+    - {name: Bass5, type: CC, number: 14, value: 80}
+    - {name: Bass6, type: CC, number: 14, value: 96}
+    - {name: Bass7, type: CC, number: 14, value: 112}
+    - {name: Bass8, type: CC, number: 14, value: 127}
+    # Mid
+    - {name: Mid0, type: CC, number: 15, value: 0}
+    - {name: Mid1, type: CC, number: 15, value: 16}
+    - {name: Mid2, type: CC, number: 15, value: 32}
+    - {name: Mid3, type: CC, number: 15, value: 48}
+    - {name: Mid4, type: CC, number: 15, value: 64}
+    - {name: Mid5, type: CC, number: 15, value: 80}
+    - {name: Mid6, type: CC, number: 15, value: 96}
+    - {name: Mid7, type: CC, number: 15, value: 112}
+    - {name: Mid8, type: CC, number: 15, value: 127}
+    # Treble
+    - {name: Treble0, type: CC, number: 16, value: 0}
+    - {name: Treble1, type: CC, number: 16, value: 16}
+    - {name: Treble2, type: CC, number: 16, value: 32}
+    - {name: Treble3, type: CC, number: 16, value: 48}
+    - {name: Treble4, type: CC, number: 16, value: 64}
+    - {name: Treble5, type: CC, number: 16, value: 80}
+    - {name: Treble6, type: CC, number: 16, value: 96}
+    - {name: Treble7, type: CC, number: 16, value: 112}
+    - {name: Treble8, type: CC, number: 16, value: 127}
+    # Room Level
+    - {name: Room Level 0, type: CC, number: 17, value: 0}
+    - {name: Room Level 1, type: CC, number: 17, value: 16}
+    - {name: Room Level 2, type: CC, number: 17, value: 32}
+    - {name: Room Level 3, type: CC, number: 17, value: 48}
+    - {name: Room Level 4, type: CC, number: 17, value: 64}
+    - {name: Room Level 5, type: CC, number: 17, value: 80}
+    - {name: Room Level 6, type: CC, number: 17, value: 96}
+    - {name: Room Level 7, type: CC, number: 17, value: 112}
+    - {name: Room Level 8, type: CC, number: 17, value: 127}
+    # Room Size
+    - {name: Small Room, type: CC, number: 18, value: 1}
+    - {name: Medium Room, type: CC, number: 18, value: 2}
+    - {name: Large Room, type: CC, number: 18, value: 3}
+    groups:
+      - name: Clean
+        messages: [Deluxe Reverb, Cab Deluxe Reverb, Drive0, Level6, Bass4, Mid4, Treble4, Room Level 4, Medium Room]
+      - name: Burry Rhythm
+        messages: [AC30, Cab Mesa Boogie, Drive5, Level3, Bass4, Mid4, Treble4, Room Level 4, Medium Room]
+      - name: Distorted Rhythm
+        messages: [AC30, Cab Mesa Boogie, Drive6, Level2, Bass4, Mid4, Treble4, Room Level 4, Medium Room]
+      - name: Distorted Plexi
+        messages: [Plexi, Cab Mesa Boogie, Drive8, Level2, Bass4, Mid4, Treble4, Room Level 4, Medium Room]
 
   # The Scarlett audio interface, I haven't done much with it yet
   - name: Scarlett
@@ -76,7 +162,7 @@ devices:
   - name: Timeline
     channel: 5
     enable: {type: CC, number: 102, value: 127}
-    bypass: {type: CC, number: 1, value: 0}
+    bypass: {type: CC, number: 102, value: 0}
     messages:
     - {name: Bank 0, type: CC, number: 0, value: 0 }
     - {name: Bank 1, type: CC, number: 0, value: 1 }
@@ -90,6 +176,7 @@ devices:
     messages:
     - {name: Main Click, type: CC, number: 45, value: 8}
     - {name: Aux Click, type: CC, number: 45, value: 9}
+    - {name: Home, type: CC, number: 35, value: 2}
     - {name: MSB, type: CC, number: 0, value: 0}
     - {name: FWIW, type: PC, number: 0, setup: MSB}
     - {name: Swirling, type: PC, number: 1, setup: MSB}
@@ -104,17 +191,147 @@ banks:
 # I use the home bank as a navigation bank, it is just a set of "jump to" presets
 - name: Home
   description: Navigation to other banks
+  palette: navigation
   presets:
-    - {short_name: Noodling, actions: [{name: Bank Noodling, trigger: Press}]}
-    - {short_name: Bypass, actions: [{name: Bank Bypass, trigger: Press}]}
-    - {short_name: Devices, actions: [{name: Bank Devices, trigger: Press}]}
-    - {short_name: Songs, actions: [{name: Bank Songs, trigger: Press}]}
+    - short_name: Noodling
+      actions: [{name: Bank Noodling}]
+    - short_name: Iridium
+      actions: [{name: Bank Iridium}]
+    - {short_name: Other Devices, actions: [{name: Bank Devices}]}
+    - {short_name: Songs, actions: [{name: Bank Songs}]}
+    - {short_name: Bypass, actions: [{name: Bank Bypass}]}
 
 # The Noodling bank is a collection of my favorite sounds
 - name: Noodling
   description: A selection of cool guitar sounds
   presets:
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - short_name: Clean
+      actions:
+        - {name: Iridium Clean}
+    - short_name: Burry Rhythm
+      actions:
+        - {name: Iridium Burry Rhythm}
+    - short_name: Distorted Rhythm
+      actions:
+        - {name: Iridium Distorted Rhythm}
+    - short_name: Distorted Plexi
+      actions:
+        - {name: Iridium Distorted Plexi}
+    - short_name: ''
+    - short_name: Home
+      palette: navigation
+      actions: [{name: Bank Home}]
+
+# The Iridium bank
+- name: Iridium
+  description: Iridium Exploration
+  presets:
+    # Note that names are the currently active config, but the action takes you to the next config
+    # Also note that the initial state (on bank entry) is the last action in the list
+    - type: cycle
+      actions:
+        - {name: Deluxe Reverb, action: Iridium Deluxe Reverb}
+        - {name: AC30, action: Iridium AC30}
+        - {name: Plexi, action: Iridium Plexi}
+    - type: cycle
+      actions:
+        - {name: Deluxe Reverb, action: Iridium Cab Deluxe Reverb}
+        - {name: Blues Junior, action: Iridium Cab Blues Junior}
+        - {name: Vibrolux, action: Iridium Cab Vibrolux}
+        - {name: AC30, action: Iridium Cab AC30}
+        - {name: Custom Celestion, action: Iridium Cab Custom Celestion}
+        - {name: Mesa Boogie, action: Iridium Cab Mesa Boogie}
+        - {name: Celestion G12, action: Iridium Cab Celestion G12}
+        - {name: Celestion Vintage, action: Iridium Cab Celestion Vintage}
+        - {name: Celestion T652, action: Iridium Cab Celestion T652}
+    - type: cycle
+      actions:
+        - {name: Level4, action: Iridium Level4}
+        - {name: Level5, action: Iridium Level5}
+        - {name: Level6, action: Iridium Level6}
+        - {name: Level7, action: Iridium Level7}
+        - {name: Level8, action: Iridium Level8}
+        - {name: Level0, action: Iridium Level0}
+        - {name: Level1, action: Iridium Level1}
+        - {name: Level2, action: Iridium Level2}
+        - {name: Level3, action: Iridium Level3}
+    - type: cycle
+      actions:
+        - {name: Drive0, action: Iridium Drive0}
+        - {name: Drive1, action: Iridium Drive1}
+        - {name: Drive2, action: Iridium Drive2}
+        - {name: Drive3, action: Iridium Drive3}
+        - {name: Drive4, action: Iridium Drive4}
+        - {name: Drive5, action: Iridium Drive5}
+        - {name: Drive6, action: Iridium Drive6}
+        - {name: Drive7, action: Iridium Drive7}
+        - {name: Drive8, action: Iridium Drive8}
+    - short_name: ''
+    - short_name: Eq & Room/Home
+      palette: navigation
+      actions: [{name: Next Page}, {name: Bank Home, trigger: Long Press}]
+    - type: cycle
+      actions:
+        - {name: Bass4, action: Iridium Bass4}
+        - {name: Bass5, action: Iridium Bass5}
+        - {name: Bass6, action: Iridium Bass6}
+        - {name: Bass7, action: Iridium Bass7}
+        - {name: Bass8, action: Iridium Bass8}
+        - {name: Bass0, action: Iridium Bass0}
+        - {name: Bass1, action: Iridium Bass1}
+        - {name: Bass2, action: Iridium Bass2}
+        - {name: Bass3, action: Iridium Bass3}
+    - type: cycle
+      actions:
+        - {name: Mid4, action: Iridium Mid4}
+        - {name: Mid5, action: Iridium Mid5}
+        - {name: Mid6, action: Iridium Mid6}
+        - {name: Mid7, action: Iridium Mid7}
+        - {name: Mid8, action: Iridium Mid8}
+        - {name: Mid0, action: Iridium Mid0}
+        - {name: Mid1, action: Iridium Mid1}
+        - {name: Mid2, action: Iridium Mid2}
+        - {name: Mid3, action: Iridium Mid3}
+    - type: cycle
+      actions:
+        - {name: Treble4, action: Iridium Treble4}
+        - {name: Treble5, action: Iridium Treble5}
+        - {name: Treble6, action: Iridium Treble6}
+        - {name: Treble7, action: Iridium Treble7}
+        - {name: Treble8, action: Iridium Treble8}
+        - {name: Treble0, action: Iridium Treble0}
+        - {name: Treble1, action: Iridium Treble1}
+        - {name: Treble2, action: Iridium Treble2}
+        - {name: Treble3, action: Iridium Treble3}
+    - type: cycle
+      actions:
+        - {name: Room Level 4, action: Iridium Room Level 4}
+        - {name: Room Level 5, action: Iridium Room Level 5}
+        - {name: Room Level 6, action: Iridium Room Level 6}
+        - {name: Room Level 7, action: Iridium Room Level 7}
+        - {name: Room Level 8, action: Iridium Room Level 8}
+        - {name: Room Level 0, action: Iridium Room Level 0}
+        - {name: Room Level 1, action: Iridium Room Level 1}
+        - {name: Room Level 2, action: Iridium Room Level 2}
+        - {name: Room Level 3, action: Iridium Room Level 3}
+    - type: cycle
+      actions:
+        - {name: Medium Room, action: Iridium Medium Room}
+        - {name: Large Room, action: Iridium Large Room}
+        - {name: Small Room, action: Iridium Small Room}
+    - short_name: Iridium
+      palette: navigation
+      actions: [{name: Previous Page}]
+
+- name: Iridium Presets
+  description: Iridium Presets
+  presets:
+  - {type: bypass, device: Iridium}
+  - {short_name: Clean, actions: [{name: Iridium Clean Preset}]}
+  - {short_name: Burry, actions: [{name: Iridium Burry Preset}]}
+  - {short_name: Distortion, actions: [{name: Iridium Distortion Preset}]}
+  - {short_name: Max Distortion, actions: [{name: Iridium Max Distortion Preset}]}
+  - {short_name: Home, actions: [{name: Bank Home}]}
 
 # The bypass bank allows enabling/bypassing devices in one convenient location
 - name: Bypass
@@ -123,35 +340,39 @@ banks:
     - {type: bypass, device: H9 }
     - {type: bypass, device: Timeline }
     - {type: bypass, device: Iridium}
-    # TODO: I need a "bypass" for the Aeros, to exit a song page
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - short_name: Home
+      palette: navigation
+      actions: [{name: Bank Home}]
 
 # The devices bank is a navigation bank, getting you to individual device control banks
 - name: Devices
   description: Navigation to Device control pages
+  palette: navigation
   presets:
-    - {short_name: H9, actions: [{name: Bank H9, trigger: Press}]}
-    - {short_name: Timeline, actions: [{name: Bank Timeline, trigger: Press}]}
-    - {short_name: Iridium, actions: [{name: Bank Iridium, trigger: Press}]}
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - {short_name: H9, actions: [{name: Bank H9}]}
+    - {short_name: Timeline, actions: [{name: Bank Timeline}]}
+    - {short_name: Iridium, actions: [{name: Bank Iridium}]}
+    - {short_name: Home, actions: [{name: Bank Home}]}
 
 # The songs bank is a navigation bank, getting you to individual song banks
 - name: Songs
   description: Navigation to Song pages
+  palette: navigation
   presets:
-    - {short_name: For What It's Worth, actions: [{name: Bank For What It's Worth, trigger: Press}]}
-    - {short_name: Swirling, actions: [{name: Bank Swirling, trigger: Press}]}
-    - {short_name: Saints and Martyrs, actions: [{name: Bank Saints and Martyrs, trigger: Press}]}
-    - {short_name: Prelude in C# Minor, actions: [{ name: Bank Prelude in C# Minor, trigger: Press }]}
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - {short_name: For What It's Worth, actions: [{name: Bank For What It's Worth}]}
+    - {short_name: Swirling, actions: [{name: Bank Swirling}]}
+    - {short_name: Saints and Martyrs, actions: [{name: Bank Saints and Martyrs}]}
+    - {short_name: Prelude in C# Minor, actions: [{ name: Bank Prelude in C# Minor}]}
+    - {short_name: Home, actions: [{name: Bank Home}]}
 
 - name: H9
   description: Navigation to H9 algorithm groups of sounds
+  palette: navigation
   presets:
-    - {short_name: H9 Chorus, actions: [{name: Bank H9 Chorus, trigger: Press}]}
-    - {short_name: H9 Phaser, actions: [{name: Bank H9 Phaser, trigger: Press}]}
-    - {short_name: H9 Wah, actions: [{name: Bank H9 Wah, trigger: Press}]}
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - {short_name: H9 Chorus, actions: [{name: Bank H9 Chorus}]}
+    - {short_name: H9 Phaser, actions: [{name: Bank H9 Phaser}]}
+    - {short_name: H9 Wah, actions: [{name: Bank H9 Wah}]}
+    - {short_name: Home, actions: [{name: Bank Home}]}
 
 - name: H9 Chorus
   description: H9 chorus sounds
@@ -161,78 +382,88 @@ banks:
 # generated automatically from the device, and messages from the device
   - {type: bypass, device: H9}
   - short_name: SquareModWah
-    actions: [{name: H9 Chorus SquareModWah, trigger: Press}]
+    actions: [{name: H9 Chorus SquareModWah}]
   - short_name: PhasyChorus
-    actions: [{name: H9 Chorus PhasyChorus, trigger: Press}]
+    actions: [{name: H9 Chorus PhasyChorus}]
   - short_name: Polymodelicious
-    actions: [{name: H9 Chorus Polymodelicious, trigger: Press}]
-  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    actions: [{name: H9 Chorus Polymodelicious}]
+  - short_name: Home
+    palette: navigation
+    actions: [{name: Bank Home}]
 
 - name: H9 Phaser
   description: H9 phaser sounds
   presets:
   - {type: bypass, device: H9}
   - short_name: FunkPhase
-    actions: [{name: H9 Phaser FunkPhase, trigger: Press}]
+    actions: [{name: H9 Phaser FunkPhase}]
   - short_name: SawModPhaser
-    actions: [{name: H9 Phaser SawModPhaser, trigger: Press}]
+    actions: [{name: H9 Phaser SawModPhaser}]
   - short_name: Vibraphaser
-    actions: [{name: H9 Phaser Vibraphaser, trigger: Press}]
-  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    actions: [{name: H9 Phaser Vibraphaser}]
+  - short_name: Home
+    palette: navigation
+    actions: [{name: Bank Home}]
 
 - name: H9 Wah
   description: H9 wah sounds
   presets:
   - {type: bypass, device: H9}
-  - {short_name: BigModdedPlanets, actions: [{name: H9 Wah BigModdedPlanets, trigger: Press}]}
-  - {short_name: LessEvenAutoWah, actions: [{name: H9 Wah LessEvenAutoWah, trigger: Press}]}
-  - {short_name: PhasyWah, actions: [{name: H9 Wah PhasyWah, trigger: Press}]}
-  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+  - {short_name: BigModdedPlanets, actions: [{name: H9 Wah BigModdedPlanets}]}
+  - {short_name: LessEvenAutoWah, actions: [{name: H9 Wah LessEvenAutoWah}]}
+  - {short_name: PhasyWah, actions: [{name: H9 Wah PhasyWah}]}
+  - short_name: Home
+    palette: navigation
+    actions: [{name: Bank Home,}]
 
 - name: Timeline
   description: Various delay sounds
   presets:
   - {type: bypass, device: Timeline}
-  - {short_name: Easy Delay, actions: [{name: Timeline Easy Delay, trigger: Press}]}
-  - {short_name: Heavy Delay, actions: [{name: Timeline Heavy Delay, trigger: Press}]}
-  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
-
-- name: Iridium
-  description: Iridium choices
-  presets:
-  - {type: bypass, device: Iridium}
-  - {short_name: Clean, actions: [{name: Iridium Clean, trigger: Press}]}
-  - {short_name: Burry, actions: [{name: Iridium Burry, trigger: Press}]}
-  - {short_name: Distortion, actions: [{name: Iridium Distortion, trigger: Press}]}
-  - {short_name: Max Distortion, actions: [{name: Iridium Max Distortion, trigger: Press}]}
-  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+  - {short_name: Easy Delay, actions: [{name: Timeline Easy Delay}]}
+  - {short_name: Heavy Delay, actions: [{name: Timeline Heavy Delay}]}
+  - short_name: Home
+    palette: navigation
+    actions: [{name: Bank Home}]
 
 - name: For What It's Worth
   description: Crosby, Stills, Nash and Young
-  actions: [{name: Aeros FWIW, trigger: On Enter Bank}]
+  actions:
+  - {name: Aeros FWIW}
+  - {name: Aeros Home, trigger: On Exit Bank}
   presets:
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - short_name: Home
+      palette: navigation
+      actions: [{name: Bank Home}]
 
 - name: Swirling
   description: The Air Swirls
-  actions: [{name: Aeros Swirling, trigger: On Enter Bank}]
+  actions:
+  - {name: Aeros Swirling}
+  - {name: Aeros Home, trigger: On Exit Bank}
   presets:
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - short_name: Home
+      palette: navigation
+      actions: [{name: Bank Home}]
 
 - name: Saints and Martyrs
   description: Thanks to Flannery OConnor
-  actions: [{name: Aeros Saints and Martyrs, trigger: On Enter Bank}]
+  actions:
+  - {name: Aeros Saints and Martyrs}
+  - {name: Aeros Home, trigger: On Exit Bank}
   presets:
-    - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+    - {short_name: Home, actions: [{name: Bank Home}]}
 
 - name: Prelude in C# Minor
   description: Rachmaninoff
   presets:
   - short_name: "1.1"
     actions:
-      - {name: Iridium Clean, trigger: Press}
-      - {name: H9 PreludeIntro, trigger: Press}
+      - {name: Iridium Clean}
+      - {name: H9 PreludeIntro}
   - short_name: "1.2"
     actions:
-      - {name: Iridium Burry, trigger: Press}
-  - {short_name: Home, actions: [{name: Bank Home, trigger: Press}]}
+      - {name: Iridium Burry Rhythm}
+  - short_name: Home
+    palette: navigation
+    actions: [{name: Bank Home}]

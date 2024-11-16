@@ -149,6 +149,10 @@ class SimpleTestCase(unittest.TestCase):
         self.process_one_file("SetToggle", "yaml")
         self.process_one_file("Settoggle", "json")
 
+    def test_configs_utility(self):
+        self.process_one_file("Utility", "yaml")
+        self.process_one_file("Utility", "json")
+
     # def test_configs_select_exp_message(self):
     #     self.process_one_file("SelectExpMessage", "yaml", setlist=True)
     #     self.process_one_file("SelectExpMessage", "json", setlist=True)

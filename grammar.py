@@ -22,7 +22,7 @@ import re
 # # it is a model of what is intended by the JSON or YAML
 # It is like an abstract syntax tree, but more focused on meaning than syntax
 # Generating takes a model and creates the JSON/YAML string equivalent.
-# Printing prints out the grammar in human readable form (more or less)
+# Printing prints out the grammar in human-readable form (more or less)
 #
 # Grammar elements are Dictionaries, Switch Dictionaries, Lists, Enums and Atoms
 # Dictionaries and switch dictionaries have keys that map to elements
@@ -371,7 +371,10 @@ class SwitchDict(DictBase):
         if switch_value is None:
             switch_value = switch_key['schema'].default
         if switch_value not in self.case_keys:
-            raise GrammarException('bad_switch', 'switch element not in case keys')
+            msg = 'The switch element ' + str(switch_value) + ' does not appear in the case keys: '
+            msg += ','.join(self.case_keys)
+            msg += "\nwhile parsing " + str(elem)
+            raise GrammarException('bad_switch', msg)
         case_keys = self.case_keys[switch_value]
 
         if self.model_var is not None:

@@ -1,4 +1,4 @@
-version: 0.3.1
+version: 0.3.2
 midi_channel: 3
 
 midi_channels:
@@ -6,6 +6,8 @@ midi_channels:
   - name: Device with just messages
   - name: Device with messages and enable and bypass
   - name: Device with initial state
+  - name: Delay
+  - name: AmpInAPedal
 
 banks:
   - name: Empty Bank
@@ -15,10 +17,6 @@ banks:
       - {trigger: On Enter Bank - Execute Once Only, type: CC, channel: 4, number: 102, value: 127}
       - {trigger: On Enter Bank - Execute Once Only, type: CC, channel: 4, number: 0, value: 0}
       - {trigger: On Enter Bank - Execute Once Only, type: PC, channel: 4, number: 100}
-  - name: Description Bank
-    description: This is a description
-    text: black
-    background: lightyellow
   - name: Bank with presets
     text: black
     background: lightyellow
@@ -56,7 +54,28 @@ banks:
         text: black
         background: lightyellow
         messages:
-          - {type: Bank Jump, trigger: Press, bank: 3}
+          - {type: Bank Jump, trigger: Press, bank: 2}
+      - short_name: Preset F
+        text: black
+        background: lightyellow
+        messages:
+          - {type: Toggle Page, trigger: Press, page: 1}
+      - short_name: Preset G
+        text: black
+        background: lightyellow
+        messages:
+          - {type: Toggle Page, trigger: Press, page: 2}
+      - short_name: Preset H
+        text: black
+        background: lightyellow
+        messages:
+          - { type: CC, trigger: Press, channel: 5, number: 0, value: 0 }
+          - { type: CC, trigger: Press, channel: 5, number: 0, value: 0 }
+          - { type: PC, trigger: Press, channel: 5, number: 100}
+          - { type: CC, trigger: Release, channel: 5, number: 0, value: 1 }
+          - { type: CC, trigger: Release, channel: 5, number: 0, value: 0 }
+          - { type: PC, trigger: Release, channel: 5, number: 101}
+
     # A bank with action on entry
   - name: Bank with actions
     text: black
@@ -64,6 +83,8 @@ banks:
     messages:
       - {type: CC, trigger: On Enter Bank, channel: 2, number: 0, value: 0}
       - {type: PC, trigger: On Enter Bank, channel: 2, number: 0}
+      - {type: CC, trigger: On Exit Bank, channel: 2, number: 0, value: 0}
+      - {type: PC, trigger: On Exit Bank, channel: 2, number: 1}
     presets:
       - short_name: Preset A
         text: black
@@ -71,3 +92,35 @@ banks:
         messages:
           - {type: CC, trigger: Press, channel: 2, number: 0, value: 0}
           - {type: PC, trigger: Press, channel: 2, number: 0}
+
+    # A bank aloowing exploration of an amp-in-a-pedal settings
+  - name: AmpInAPedal Exploration
+    description: Demonstrates the cycle preset type, allowing easy exploration of a pedal's capabilities
+    display_description: True
+    text: black
+    background: lightyellow
+    messages:
+      - {type: CC, trigger: On Enter Bank, channel: 6, number: 10, value: 1}
+    presets:
+      - short_name: Fender
+        text: black
+        background: lightyellow
+        message_scroll: "On"
+        messages:
+          - {type: Preset Rename, trigger: Release, new_name: Marshall}
+          - {type: CC, trigger: Release, channel: 6, number: 10, value: 2}
+          - {type: Preset Rename, trigger: Release, new_name: Mesa}
+          - {type: CC, trigger: Release, channel: 6, number: 10, value: 3}
+          - {type: Preset Rename, trigger: Release, new_name: Peavey}
+          - {type: CC, trigger: Release, channel: 6, number: 10, value: 4}
+          - {type: Preset Rename, trigger: Release, new_name: Fender}
+          - {type: CC, trigger: Release, channel: 6, number: 10, value: 1}
+          - type: Utility
+            utility_type: Manage Preset Scroll
+            manage preset scroll subtype: Set number of messages to scroll
+            preset scroll message count: 2
+            trigger: Press
+          - type: Utility
+            utility_type: Manage Preset Scroll
+            manage preset scroll subtype: Toggle Scroll Direction and Execute
+            trigger: Long Press

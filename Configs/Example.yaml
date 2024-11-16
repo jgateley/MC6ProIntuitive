@@ -1,8 +1,8 @@
 # System
 # Version must be parsed before anything else, otherwise grammars don't match
-# Navigator values are "One Button", "Two Buttons", or "None" (default)
+# TODO: Clean this up, make it more lifelike
 system:
-  version: 0.3.1
+  version: 0.3.2
   midi_channel: 3
 
 # Color Palettes
@@ -47,6 +47,7 @@ devices:
     messages:
     - {name: Bank 0, type: CC, number: 0, value: 0}
     - {name: Clean, type: PC, number: 0, setup: Bank 0}
+    - {name: Dirty, type: PC, number: 1, setup: Bank 0}
   - name: Device with messages and enable and bypass
     channel: 3
     enable: {type: CC, number: 0, value: 0}
@@ -64,6 +65,27 @@ devices:
     - {name: Easy Delay, type: PC, number: 100, setup: Bank 0 }
     - {name: Heavy Delay, type: PC, number: 101, setup: Bank 0 }
     initial: [Enable, Easy Delay]
+  # This shows groups
+  - name: Delay
+    channel: 5
+    messages:
+    - {name: Bank 0, type: CC, number: 0, value: 0 }
+    - {name: Bank 1, type: CC, number: 0, value: 1 }
+    - {name: Easy Delay, type: PC, number: 100, setup: Bank 0 }
+    - {name: Heavy Delay, type: PC, number: 101, setup: Bank 0 }
+    groups:
+      - name: Group 1
+        messages: [Bank 0, Easy Delay]
+      - name: Group 2
+        messages: [Bank 1, Heavy Delay]
+  # This is an amp-in-a-pedal style device
+  - name: AmpInAPedal
+    channel: 6
+    messages:
+    - {name: Fender, type: CC, number: 10, value: 1 }
+    - {name: Marshall, type: CC, number: 10, value: 2 }
+    - {name: Mesa, type: CC, number: 10, value: 3 }
+    - {name: Peavey, type: CC, number: 10, value: 4 }
 
 # Banks - a list of banks
 # Position in the order is preserved
@@ -77,43 +99,63 @@ devices:
 # generated automatically from the device, and messages from the device
 banks:
   # A bank with nothing
+  # This is needed for automated testing: no description
   - name: Empty Bank
     palette: full
-  # A bank with a description
-  - name: Description Bank
-    description: This is a description
   # The various presets, including bypass
   - name: Bank with presets
     presets:
       - short_name: Preset A
         actions:
           - name: Device with just messages Clean
-            trigger: Press
       - short_name: Preset B
         actions:
           - name: Device with just messages Clean
-            trigger: Press
           - name: Device with messages and enable and bypass Chorus PhasyChorus
-            trigger: Press
       - type: bypass
         device: Device with initial state
       # Preset D: jump tp the first bank (named Empty Bank)
       - short_name: Preset D
         actions:
           - name: Bank Empty Bank
-            trigger: Press
       # Jump to another bank
       - short_name: Preset E
         actions:
           - name: Bank Bank with actions
-            trigger: Press
-  # A bank with action on entry
+      # Jump to the next page
+      - short_name: Preset F
+        actions:
+          - name: Next Page
+      # Jump to the previous page
+      - short_name: Preset G
+        actions:
+          - name: Previous Page
+      - short_name: Preset H
+        actions:
+          - name: Delay Group 1
+          - name: Delay Group 2
+            trigger: Release
+  # Bank Actions Example
   - name: Bank with actions
     actions:
       - name: Device with just messages Clean
-        trigger: On Enter Bank
+      - name: Device with just messages Dirty
+        trigger: On Exit Bank
     presets:
       - short_name: Preset A
         actions:
           - name: Device with just messages Clean
-            trigger: Press
+  - name: AmpInAPedal Exploration
+    description: Demonstrates the cycle preset type, allowing easy exploration of a pedal's capabilities
+    presets:
+      # This preset lets you cycle through the 4 choices available in AmpInAPedal
+      # The Fender label is the initial state (and is enforced via On Bank Entry
+      # Each label is displayed when that amp selection is active
+      # So, each action triggers the next selection
+      # A long press reverses direction
+      - type: cycle
+        actions:
+          - {name: Fender, action: AmpInAPedal Fender}
+          - {name: Marshall, action: AmpInAPedal Marshall}
+          - {name: Mesa, action: AmpInAPedal Mesa}
+          - {name: Peavey, action: AmpInAPedal Peavey}

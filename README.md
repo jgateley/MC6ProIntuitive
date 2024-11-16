@@ -1,11 +1,11 @@
 # Morningstar(MC6Pro) Intuitive Configuration
 ## Overview
 The Morningstar Editor is great software, but presents a friable experience.
-Instead, this package defines a YAML or JSON based configuation file with a tool to
-convertit to a MC6Pro backup format,
-and can be restored to the device.
+As an alternative, this package defines a YAML or JSON based configuation file with a tool for
+conversion to a MC6Pro backup format,
+that can be restored to the device.
 It may work with
-other Morningstar products, but hasn't been tested with them.
+other Morningstar products, but hasn't yet been tested with them.
 - Human editable configuration file (YAML or JSON)
 - Config file can be stored in source control like github
 - Named messages allow easy reuse
@@ -13,6 +13,7 @@ other Morningstar products, but hasn't been tested with them.
 - Named banks
 - Easy to create presets to jump to banks
 - Named color palettes allow consistent use of colors in banks and presets
+- **Easy to create presets that cycle through options**
 
 
 Instead of editing directly through the Morningstar editor, you edit the configuration file via any editor capable of handling YAML or JSON.
@@ -102,6 +103,21 @@ For example, you can define a home bank that gives convenient access to other ba
     - {short_name: Songs, actions: [{name: Bank Songs, trigger: Press}]}
 
 ```
+## Cycle Through Presets
+If you have an amp-in-a-box pedal that provides different amp models, you may want
+to cycle through them in a single preset. This is easy to achieve:
+```
+    presets:
+      - type: cycle
+        actions:
+          - {name: Fender, action: AmpInAPedal Fender}
+          - {name: Marshall, action: AmpInAPedal Marshall}
+          - {name: Mesa, action: AmpInAPedal Mesa}
+          - {name: Peavey, action: AmpInAPedal Peavey}
+```
+On bank entry, the pedal is set to Fender, and the preset displays `Fender`.
+Clicking the preset switches the pedal to Marshall, and the preset now displays `Marshal`.
+If you have many options (like for an eq control), you can switch directions with a Long Press.
 ## Color Palettes
 Color schemas define a set of colors.
 Each set includes many potential targets like `bank_text` or `preset_shifted_text`.
@@ -125,7 +141,7 @@ palettes:
     preset_led_toggle: aqua
 
 ```
-The `deafult` palette (as seen above) is the default schema, and applies to any bank or preset that doesn't specify a color.
+The `default` palette (as seen above) is the default schema, and applies to any bank or preset that doesn't specify a color.
 
 ## Simple Format
 The Simple format is a human editable version of the backup format.

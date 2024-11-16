@@ -37,7 +37,7 @@ preset_schema = \
              jg.Dict.make_key('toggle_group',
                               jg.Atom('Toggle Group', int, 0, var='toggle_group')),
              jg.Dict.make_key('message_scroll',
-                              jg.Enum('Message Scroll', sm.MIDIThruModel.onoff_type, sm.MIDIThruModel.onoff_default,
+                              jg.Enum('Message Scroll', sm.onoff_type, sm.onoff_default,
                                       var='message_scroll')),
              jg.Dict.make_key('text', colors.make_enum('text', colors.colors[127], var='text')),
              jg.Dict.make_key('text_toggle', colors.make_enum('text_toggle', colors.colors[127], var='text_toggle')),

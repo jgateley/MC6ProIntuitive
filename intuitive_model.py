@@ -6,7 +6,10 @@ from IntuitiveException import IntuitiveException
 from version import version_verify
 import colors
 import bank_jump_message
+import toggle_page_message
 import PCCC_message
+import preset_rename_message
+import utility_message
 import simple_message as sm
 import simple_grammar
 import simple_model
@@ -18,24 +21,8 @@ import simple_model
 message_type = ['None', 'PC', 'CC']
 message_type_default = 'None'
 
-preset_type = ["vanilla", "bypass"]
+preset_type = ["vanilla", "bypass", "cycle"]
 preset_type_default = "vanilla"
-
-
-def message_lookup(messages, name):
-    if name not in messages:
-        raise IntuitiveException('no-message', "No such message: " + name)
-    return messages[name]
-
-
-def action_name_to_simple(action_name, messages, trigger=None, toggle_state=None):
-    result = []
-    while action_name is not None:
-        intuitive_message = message_lookup(messages, action_name)
-        simple_message = intuitive_message.to_simple(trigger, toggle_state)
-        result = [simple_message] + result
-        action_name = intuitive_message.setup
-    return result
 
 
 # Messages
@@ -86,6 +73,64 @@ class GotoBank:
         return bank_jump_message.BankJumpModel.build(self.bank_number)
 
 
+class PageUpDown:
+    def __init__(self, page_up):
+        self.page_up = page_up
+
+    def __eq__(self, other):
+        result = isinstance(other, PageUpDown) and self.page_up == other.page_up
+        if not result:
+            result = True
+        return result
+
+    def build(self, _channel):
+        return toggle_page_message.TogglePageModel.build(self.page_up)
+
+
+class RenamePreset:
+    def __init__(self, new_name):
+        self.new_name = new_name
+
+    def __eq__(self, other):
+        result = isinstance(other, RenamePreset) and self.new_name == other.new_name
+        if not result:
+            result = True
+        return result
+
+    def build(self, _channel):
+        return preset_rename_message.PresetRenameModel.build(self.new_name)
+
+
+# Set the preset scroll to do n messages at a time
+class ScrollNumberMessages:
+    def __init__(self, number):
+        self.number = number
+
+    def __eq__(self, other):
+        result = isinstance(other, ScrollNumberMessages) and self.number == other.number
+        if not result:
+            result = True
+        return result
+
+    def build(self, _channel):
+        return utility_message.UtilityModel.build_manage_preset_scroll(self.number)
+
+
+# Set the preset scroll to do n messages at a time
+class ScrollReverseDirection:
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        result = isinstance(other, ScrollReverseDirection)
+        if not result:
+            result = True
+        return result
+
+    def build(self, _channel):
+        return utility_message.UtilityModel.build_manage_preset_scroll(None, True)
+
+
 class MessageModel(jg.GrammarModel):
     def __init__(self):
         super().__init__('MessageModel')
@@ -117,6 +162,27 @@ class MessageModel(jg.GrammarModel):
         return sm.SimpleMessage.make(None, specific_message, self.type, trigger, toggle_state)
 
 
+class DeviceGroupModel(jg.GrammarModel):
+    def __init__(self):
+        super().__init__('DeviceGroupModel')
+        self.name = None
+        self.messages = None
+
+    # Do not check version in equality
+    def __eq__(self, other):
+        result = (isinstance(other, DeviceGroupModel) and self.name == other.name and
+                  self.messages == other.messages)
+        if not result:
+            self.modified = True
+        return result
+
+    def build(self, intuitive_object, prefix):
+        self.name = prefix + ' ' + self.name
+        for pos in range(len(self.messages)):
+            self.messages[pos] = prefix + ' ' + self.messages[pos]
+        intuitive_object.add_message(self.name, self)
+
+
 # MIDI Devices
 class DeviceModel(jg.GrammarModel):
     def __init__(self):
@@ -127,12 +193,14 @@ class DeviceModel(jg.GrammarModel):
         self.enable_message = None
         self.bypass_message = None
         self.initial = None
+        self.groups = None
 
     # Do not check version in equality
     def __eq__(self, other):
         result = (isinstance(other, DeviceModel) and self.name == other.name and self.channel == other.channel and
                   self.messages == other.messages and self.enable_message == other.enable_message and
-                  self.bypass_message == other.bypass_message and self.initial == other.initial)
+                  self.bypass_message == other.bypass_message and self.initial == other.initial and
+                  self.groups == other.groups)
         if not result:
             self.modified = True
         return result
@@ -149,8 +217,11 @@ class DeviceModel(jg.GrammarModel):
             self.enable_message.build(intuitive_object, self.name, self.channel,  name='Enable')
         if self.bypass_message is not None:
             self.bypass_message.build(intuitive_object, self.name, self.channel, name='Bypass')
+        if self.groups is not None:
+            for group in self.groups:
+                group.build(intuitive_object, self.name)
 
-    def add_startup_actions(self, bank0, message_catalogue):
+    def add_startup_actions(self, bank0, intuitive_object):
         # Add device startup actions
         if self.initial is not None:
             if bank0 is None:
@@ -159,8 +230,8 @@ class DeviceModel(jg.GrammarModel):
                 bank0.messages = []
             for message in self.initial:
                 message_name = self.name + ' ' + message
-                bank0.messages += action_name_to_simple(message_name, message_catalogue,
-                                                        "On Enter Bank - Execute Once Only")
+                bank0.messages += intuitive_object.action_name_to_simple(message_name,
+                                                                         "On Enter Bank - Execute Once Only")
 
 
 # Preset Actions
@@ -225,7 +296,8 @@ class PresetModel(jg.GrammarModel):
 
     # Convert a preset to a simple object
     # use the preset palette if present, otherwise use the bank palette
-    def to_simple(self, intuitive_model_obj, bank_palette):
+    # TODO: This code needs to be cleaned up quite a bit
+    def to_simple(self, intuitive_model_obj, simple_bank, bank_palette):
         preset_palette = intuitive_model_obj.palettes_obj.lookup_palette(self.palette, bank_palette)
         if preset_palette is None:
             preset_palette = bank_palette
@@ -239,10 +311,8 @@ class PresetModel(jg.GrammarModel):
             # Message 2 in position 2
             enable = self.device + ' Enable'
             bypass = self.device + ' Bypass'
-            messages = action_name_to_simple(enable, intuitive_model_obj.message_catalogue,
-                                             'Press', "one")
-            messages += action_name_to_simple(bypass, intuitive_model_obj.message_catalogue,
-                                              'Press', "two")
+            messages = intuitive_model_obj.action_name_to_simple(enable, 'Press', "one")
+            messages += intuitive_model_obj.action_name_to_simple(bypass, 'Press', "two")
             simple_preset = simple_model.SimplePreset.make(enable, messages)
             simple_preset.toggle_name = bypass
             simple_preset.toggle_mode = True
@@ -255,14 +325,55 @@ class PresetModel(jg.GrammarModel):
                 simple_preset.background = preset_palette.preset_background
                 simple_preset.text_toggle = preset_palette.preset_toggle_text
                 simple_preset.background_toggle = preset_palette.preset_toggle_background
+        elif self.type == 'cycle':
+            messages = []
+            # The "action name" is the name that should be displayed after pressing
+            # The "action action" is the message
+            # They are listed in the order they appear, and the initial state is the first action
+            bank_messages = intuitive_model_obj.action_name_to_simple(self.actions[0]['action'], "On Enter Bank")
+            for action in self.actions:
+                # Build the rename message
+                message = MessageModel()
+                message.specific_message = RenamePreset(action['name'])
+                message.type = 'Preset Rename'
+                messages += [message.to_simple('Release', None)]
+                # Build the state changing message
+                messages += intuitive_model_obj.action_name_to_simple(action['action'], 'Release')
+            # Now we have the list, but we need to adjust it for the initial state
+            rename = messages.pop(0)
+            state1 = messages.pop(0)
+            messages += [rename, state1]
+            # We must set the number of messages.
+            message = MessageModel()
+            message.type = 'Utility'
+            message.specific_message = ScrollNumberMessages(2)
+            messages += [message.to_simple('Press', None)]
+            # We must add the change direction message
+            message = MessageModel()
+            message.type = 'Utility'
+            message.specific_message = ScrollReverseDirection()
+            messages += [message.to_simple('Long Press', None)]
+            # The initial name is the first name in the list
+            simple_preset = simple_model.SimplePreset.make(self.actions[0]['name'], messages)
+            # Message Scroll set on
+            simple_preset.message_scroll = "On"
+            # We must add the bank message
+            if simple_bank.messages is None:
+                simple_bank.messages = []
+            simple_bank.messages += bank_messages
+            if preset_palette is not None:
+                simple_preset.text = preset_palette.preset_text
+                simple_preset.background = preset_palette.preset_background
         else:
             # Short name, colors
             # Messages
             messages = []
             if self.actions is not None:
                 for action in self.actions:
-                    messages += action_name_to_simple(action.name, intuitive_model_obj.message_catalogue,
-                                                      action.trigger)
+                    trigger = action.trigger
+                    if trigger is None:
+                        trigger = 'Press'
+                    messages += intuitive_model_obj.action_name_to_simple(action.name, trigger)
             if not messages:
                 messages = None
             simple_preset = simple_model.SimplePreset.make(self.short_name, messages)
@@ -294,6 +405,8 @@ class BankModel(jg.GrammarModel):
         simple_model_obj = simple_model.SimpleBank()
         simple_model_obj.name = self.name
         simple_model_obj.description = self.description
+        if self.description is not None:
+            simple_model_obj.display_description = True
         bank_palette = intuitive_model_obj.palettes_obj.lookup_palette(self.palette)
         if bank_palette is not None:
             simple_model_obj.set_text(bank_palette.bank_text)
@@ -303,13 +416,15 @@ class BankModel(jg.GrammarModel):
         if self.actions is not None:
             simple_model_obj.messages = []
             for action in self.actions:
-                simple_model_obj.messages += action_name_to_simple(action.name, intuitive_model_obj.message_catalogue,
-                                                                   action.trigger)
+                trigger = action.trigger
+                if trigger is None:
+                    trigger = 'On Enter Bank'
+                simple_model_obj.messages += intuitive_model_obj.action_name_to_simple(action.name, trigger)
         # Presets
         if self.presets is not None:
             simple_model_obj.presets = []
             for preset in self.presets:
-                simple_model_obj.presets.append(preset.to_simple(intuitive_model_obj, bank_palette))
+                simple_model_obj.presets.append(preset.to_simple(intuitive_model_obj, simple_model_obj, bank_palette))
         return simple_model_obj
 
 
@@ -342,6 +457,26 @@ class Intuitive(jg.GrammarModel):
             raise IntuitiveException('multiply-defined-message', "Message already exists: " + name)
         self.message_catalogue[name] = message
 
+    def action_name_to_simple(self, action_name, trigger=None, toggle_state=None, seen=None):
+        if seen is None:
+            seen = []
+        if action_name in seen:
+            raise IntuitiveException('loop detected')
+        new_seen = seen + [action_name]
+        if action_name not in self.message_catalogue:
+            msg = 'The action named ' + action_name + ' is not defined'
+            raise IntuitiveException('action name not found', msg)
+        action = self.message_catalogue[action_name]
+        result = []
+        if isinstance(action, DeviceGroupModel):
+            for message in action.messages:
+                result += self.action_name_to_simple(message, trigger, toggle_state, new_seen)
+        else:
+            if action.setup is not None:
+                result = self.action_name_to_simple(action.setup, trigger, toggle_state, new_seen)
+            result += [action.to_simple(trigger, toggle_state)]
+        return result
+
     def build_midi_channels(self, simple_model_obj):
         simple_model_obj.midi_channels = [None] * 16
         if self.devices is not None:
@@ -350,6 +485,16 @@ class Intuitive(jg.GrammarModel):
                 simple_model_obj.midi_channels[device.channel - 1] = midi_channel
                 self.midi_channel_catalogue[device.name] = device.channel
         grammar.prune_list(simple_model_obj.midi_channels)
+
+    def build_page_messages(self):
+        message = MessageModel()
+        message.specific_message = PageUpDown(True)
+        message.type = 'Toggle Page'
+        self.add_message('Next Page', message)
+        message = MessageModel()
+        message.specific_message = PageUpDown(False)
+        message.type = 'Toggle Page'
+        self.add_message('Previous Page', message)
 
     def build_goto_bank_messages(self):
         if self.banks is not None:
@@ -367,7 +512,7 @@ class Intuitive(jg.GrammarModel):
     def add_device_startup_actions(self, bank0):
         if self.devices is not None:
             for device in self.devices:
-                device.add_startup_actions(bank0, self.message_catalogue)
+                device.add_startup_actions(bank0, self)
 
     def to_simple(self):
         simple_model_obj = simple_model.Simple()
@@ -376,6 +521,10 @@ class Intuitive(jg.GrammarModel):
         # TODO: pass the Intuitive object all the way down, instead of switching to a parameter half way
         self.message_catalogue = {}
         self.midi_channel_catalogue = {}
+
+        # Add the next/previous page messages
+        self.build_page_messages()
+
         # Convert devices to midi channels
         self.build_midi_channels(simple_model_obj)
 

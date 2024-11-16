@@ -62,6 +62,12 @@ def make_message_schema(var=None):
                          model=intuitive_model.MessageModel, model_var='specific_message', var=var)
 
 
+device_group_schema = jg.Dict('device group',
+                              [jg.Dict.make_key('name', jg.Atom('Name', str, '', var='name')),
+                               jg.Dict.make_key('messages', jg.List('messages', 0, jg.Atom('message name', str),
+                                                                    var='messages'))],
+                              model=intuitive_model.DeviceGroupModel)
+
 device_schema = jg.Dict('device',
                         [jg.Dict.make_key('name', jg.Atom('name', str, var='name')),
                          jg.Dict.make_key('channel', jg.Atom('channel', int, var='channel')),
@@ -70,7 +76,8 @@ device_schema = jg.Dict('device',
                          jg.Dict.make_key('enable', make_message_schema('enable_message')),
                          jg.Dict.make_key('bypass', make_message_schema('bypass_message')),
                          jg.Dict.make_key('initial', jg.List('initial', 0,
-                                                             jg.Atom('message', str), var='initial'))],
+                                                             jg.Atom('message', str), var='initial')),
+                         jg.Dict.make_key('groups', jg.List('groups', 0, device_group_schema, var='groups'))],
                         model=intuitive_model.DeviceModel)
 
 devices_schema = jg.List('devices', 0, device_schema, var='devices')
@@ -78,15 +85,19 @@ devices_schema = jg.List('devices', 0, device_schema, var='devices')
 preset_action = jg.Dict('preset action',
                         [jg.Dict.make_key('name', jg.Atom('name', str, var='name')),
                          jg.Dict.make_key('trigger', jg.Enum('trigger_enum', simple_model.preset_message_trigger,
-                                                             simple_model.preset_message_trigger_default,
+                                                             "Press",
                                                              var='trigger'))],
                         model=intuitive_model.PresetActionModel)
 
 bank_action = jg.Dict('bank action',
                       [jg.Dict.make_key('name', jg.Atom('name', str, var='name')),
                        jg.Dict.make_key('trigger', jg.Enum('trigger_enum', simple_model.bank_message_trigger,
-                                                           simple_model.bank_message_trigger_default, var='trigger'))],
+                                                           "On Enter Bank", var='trigger'))],
                       model=intuitive_model.BankActionModel)
+
+cycle_action_schema = jg.Dict('cycle action',
+                              [jg.Dict.make_key('name', jg.Atom('name', str)),
+                               jg.Dict.make_key('action', jg.Atom('action', str))])
 
 preset_switch_key = jg.SwitchDict.make_key('type',
                                            jg.Enum('Type', intuitive_model.preset_type,
@@ -96,7 +107,8 @@ preset_case_keys = {
     'vanilla': [jg.SwitchDict.make_key('short_name', jg.Atom('short_name', str, var='short_name')),
                 jg.SwitchDict.make_key('actions', jg.List('action list', 0, preset_action, var='actions')),
                 ],
-    'bypass': [jg.SwitchDict.make_key('device', jg.Atom('device', str, var='device'), required=True)]
+    'bypass': [jg.SwitchDict.make_key('device', jg.Atom('device', str, var='device'), required=True)],
+    'cycle': [jg.SwitchDict.make_key('actions', jg.List('actions', 0, cycle_action_schema, var='actions'))]
 }
 
 preset_schema = jg.SwitchDict('preset', preset_switch_key, preset_case_keys, preset_common_keys,

@@ -1,5 +1,10 @@
 
 # Change Log
+## [0.3.2] - 2024-11-16
+- *Press* an *On Bank Entry* are now defaults, not explicitly required
+- Cycling through presets, with reverse
+- Message groups - a single named entity for a block of related messages
+- next/previous page, and jump to bank messages
 ## [0.3.1] - 2024-11-5
 - Major refactor.
 - Intuitive is now based on use cases, not many features

@@ -3,7 +3,10 @@ import copy
 import grammar as jg
 import PCCC_message
 import bank_jump_message
+import preset_rename_message
+import toggle_page_message
 import simple_model
+import utility_message
 
 # TODO: Messages are a work in progress. The original implementation was not great, there was a long if/then/else
 # TODO: chain in from_backup.
@@ -26,7 +29,9 @@ simple_message_type = ["unused", "PC", "CC", "Note On", "Note Off",
                        # Below here are Simple Only actions
                        # TODO These should go away
                        # 45
-                       "Page Jump", "Preset Scroll Message Count", "Disengage Looper Mode",
+                       # "Page Jump", throws count off by one
+                       # "Preset Scroll Message Count", now count off by two
+                       "Disengage Looper Mode",
                        # 48
                        'Stop CC Waveform Generator', 'Stop CC Sequence Generator',
                        # 50
@@ -38,6 +43,9 @@ simple_message_type = ["unused", "PC", "CC", "Note On", "Note Off",
                        # 56
                        'MIDI Clock Tap Menu', 'PC Number Scroll Update', 'CC Value Scroll Update']
 simple_message_default = simple_message_type[0]
+
+onoff_type = ["Off", "On"]
+onoff_default = onoff_type[0]
 
 
 class PCMultichannelModel(jg.GrammarModel):
@@ -412,57 +420,6 @@ class CCValueScrollUpdateModel(PCCCNumberValueScrollBaseModel):
         self.to_backup_update(backup_message)
 
 
-class PageJumpModel(jg.GrammarModel):
-    def __init__(self):
-        super().__init__('PageJumpModel')
-        self.page = None
-
-    def __eq__(self, other):
-        result = isinstance(other, PageJumpModel) and self.page == other.page
-        if not result:
-            self.modified = True
-        return result
-
-    def from_backup(self, backup_message):
-        self.page = backup_message.msg_array_data[0] - 3
-        return str(self.page)
-
-    def to_backup(self, backup_message, _bank_catalog, _simple_bank, _simple_preset):
-        backup_message.type = simple_message_type.index('Toggle Page')
-        backup_message.msg_array_data[0] = self.page + 3
-
-
-class TogglePageModel(jg.GrammarModel):
-    @staticmethod
-    def mk_toggle_page_message(page_up):
-        result = TogglePageModel()
-        result.page_up = page_up
-        return result
-
-    def __init__(self):
-        super().__init__('TogglePageModel')
-        self.page_up = None
-
-    def __eq__(self, other):
-        result = isinstance(other, TogglePageModel) and self.page_up == other.page_up
-        if not result:
-            self.modified = True
-        return result
-
-    def from_backup(self, backup_message):
-        self.page_up = backup_message.msg_array_data[0] == 1
-        if self.page_up:
-            return "Up"
-        else:
-            return "Down"
-
-    def to_backup(self, backup_message, _bank_catalog, _simple_bank, _simple_preset):
-        if self.page_up:
-            backup_message.msg_array_data[0] = 1
-        else:
-            backup_message.msg_array_data[0] = 2
-
-
 class NoteOnModel(jg.GrammarModel):
     @staticmethod
     def get_common_keys():
@@ -587,29 +544,6 @@ class RealTimeModel(jg.GrammarModel):
 
     def to_backup(self, backup_message, _bank_catalog, _simple_bank, _simple_preset):
         backup_message.msg_array_data[0] = RealTimeModel.realtime_message_type.index(self.real_time_type)
-
-
-class PresetRenameModel(jg.GrammarModel):
-    def __init__(self):
-        super().__init__('PresetRenameModel')
-        self.new_name = None
-
-    def __eq__(self, other):
-        result = isinstance(other, PresetRenameModel) and self.new_name == other.new_name
-        if not result:
-            self.modified = True
-        return result
-
-    def from_backup(self, backup_message):
-        chars = copy.deepcopy(backup_message.msg_array_data)
-        jg.prune_list(chars)
-        self.new_name = ''.join(map(chr, chars))
-        return self.new_name
-
-    def to_backup(self, backup_message, _bank_catalog, _simple_bank, _simple_preset):
-        data = map(ord, [*self.new_name])
-        for i, val in enumerate(data):
-            backup_message.msg_array_data[i] = val
 
 
 class SongPositionModel(jg.GrammarModel):
@@ -879,33 +813,7 @@ class RelaySwitchingModel(jg.GrammarModel):
             backup_message.msg_array_data[2] = RelaySwitchingModel.tip_ring_action_type.index(self.ring_action)
 
 
-class PresetScrollMessageCountModel(jg.GrammarModel):
-    def __init__(self):
-        super().__init__('PresetScrollMessageCountModel')
-        self.message_count = None
-
-    def __eq__(self, other):
-        result = isinstance(other, PresetScrollMessageCountModel) and self.message_count == other.message_count
-        if not result:
-            self.modified = True
-        return result
-
-    def from_backup(self, backup_message):
-        self.message_count = backup_message.msg_array_data[2]
-        return str(self.message_count)
-
-    def to_backup(self, backup_message, _bank_catalog, _simple_bank, _simple_preset):
-        backup_message.type = simple_message_type.index("Utility")
-        backup_message.msg_array_data[0] = SimpleMessage.utility_message_type.index("Manage Preset Scroll")
-        backup_message.msg_array_data[1] =\
-            SimpleMessage.utility_message_preset_scroll_type.index("Set number of messages to scroll")
-        backup_message.msg_array_data[2] = self.message_count
-
-
 class MIDIThruModel(jg.GrammarModel):
-    onoff_type = ["Off", "On"]
-    onoff_default = onoff_type[0]
-
     def __init__(self):
         super().__init__('MIDIThruModel')
         self.value = None
@@ -918,17 +826,17 @@ class MIDIThruModel(jg.GrammarModel):
 
     def from_backup(self, backup_message):
         if backup_message.msg_array_data is None or backup_message.msg_array_data[0] is None:
-            self.value = MIDIThruModel.onoff_default
+            self.value = onoff_default
         else:
-            self.value = MIDIThruModel.onoff_type[backup_message.msg_array_data[0]]
+            self.value = onoff_type[backup_message.msg_array_data[0]]
         name = self.value
-        if self.value == MIDIThruModel.onoff_default:
+        if self.value == onoff_default:
             self.value = None
         return name
 
     def to_backup(self, backup_message, _bank_catalog, _simple_bank, _simple_preset):
         if self.value is not None and self.value != MIDIThruModel.onoff_default:
-            backup_message.msg_array_data[0] = MIDIThruModel.onoff_type.index(self.value)
+            backup_message.msg_array_data[0] = onoff_type.index(self.value)
 
 
 class WaveformSequenceBaseModel(jg.GrammarModel):
@@ -1815,17 +1723,12 @@ class SimpleMessage(jg.GrammarModel):
     preset_toggle_state = ["one", "two", "both", "shift"]
     preset_toggle_state_default = preset_toggle_state[2]
 
-    utility_message_type = ["Set Message Scroll Counter", "Clear Global Preset Toggles", "Increase MIDI Clock BPM by 1",
-                            "Decrease MIDI Clock BPM by 1", "Set Scroll Counter Values", "Set MIDI Output Mask",
-                            "Manage Preset Scroll", "Set Preset Background/Text/Strip Color",
-                            "Set Bank Background/Text Color"]
-    utility_message_preset_scroll_type = ["Do Nothing", "Toggle Scroll Direction",
-                                          "Toggle Scroll Direction and Execute",
-                                          "Reverse Direction Once and Execute", "Set number of messages to scroll"]
-
     to_bank_classes = {'PC': PCCC_message.PCModel,
                        'CC': PCCC_message.CCModel,
-                       'Bank Jump': bank_jump_message.BankJumpModel}
+                       'Bank Jump': bank_jump_message.BankJumpModel,
+                       'Toggle Page': toggle_page_message.TogglePageModel,
+                       'Preset Rename': preset_rename_message.PresetRenameModel,
+                       'Utility': utility_message.UtilityModel}
 
     @staticmethod
     def make(name, specific_message, ptype, trigger, toggle_state):
@@ -1888,15 +1791,6 @@ class SimpleMessage(jg.GrammarModel):
         elif self.type == 'PC Multichannel':
             self.specific_message = PCMultichannelModel()
             self.name += self.specific_message.from_backup(backup_message)
-        elif self.type == 'Toggle Page':
-            if backup_message.msg_array_data[0] == 1 or backup_message.msg_array_data[0] == 2:
-                self.specific_message = TogglePageModel()
-                self.name += self.specific_message.from_backup(backup_message)
-            else:
-                self.type = "Page Jump"
-                self.name = self.type + ':'
-                self.specific_message = PageJumpModel()
-                self.name += self.specific_message.from_backup(backup_message)
         elif self.type == 'Note On' or self.type == 'Note Off':
             if self.type == 'Note On':
                 self.specific_message = NoteOnModel()
@@ -1908,9 +1802,6 @@ class SimpleMessage(jg.GrammarModel):
             self.name += self.specific_message.from_backup(channel, backup_message)
         elif self.type == 'Real Time':
             self.specific_message = RealTimeModel()
-            self.name += self.specific_message.from_backup(backup_message)
-        elif self.type == 'Preset Rename':
-            self.specific_message = PresetRenameModel()
             self.name += self.specific_message.from_backup(backup_message)
         elif self.type == 'Song Position':
             self.specific_message = SongPositionModel()
@@ -1981,20 +1872,6 @@ class SimpleMessage(jg.GrammarModel):
         elif self.type == 'SysEx':
             self.specific_message = SysExModel()
             self.name += self.specific_message.from_backup(backup_message)
-        elif self.type == 'Utility':
-            utility_type = SimpleMessage.utility_message_type[backup_message.msg_array_data[0]]
-            if utility_type == SimpleMessage.utility_message_type[6]:
-                # Manage preset scroll
-                subtype = SimpleMessage.utility_message_preset_scroll_type[backup_message.msg_array_data[1]]
-                if subtype == SimpleMessage.utility_message_preset_scroll_type[4]:
-                    self.type = "Preset Scroll Message Count"
-                    self.name = self.type + ':'
-                    self.specific_message = PresetScrollMessageCountModel()
-                    self.name += self.specific_message.from_backup(backup_message)
-                else:
-                    raise IntuitiveException('Not implemented')
-            else:
-                raise IntuitiveException('Not implemented')
         else:
             raise IntuitiveException('unrecognized', 'Invalid message type: ' + self.type)
 
@@ -2055,10 +1932,6 @@ transition_message_case_keys = {
                         jg.SwitchDict.make_key('number', jg.Atom('Number', int, var='number'))],
     'Bank Up': [],
     'Bank Down': [],
-    'Page Jump': [PageJumpModel,
-                  jg.SwitchDict.make_key('page', jg.Atom('Page', int, var='page'))],
-    'Toggle Page': [TogglePageModel,
-                    jg.SwitchDict.make_key('page_up', jg.Atom('Page Up', bool, var='page_up'))],
     'Note On': [NoteOnModel] + NoteOnModel.get_keys(),
     'Note Off': [NoteOffModel] + NoteOffModel.get_keys(),
     'Real Time': [RealTimeModel,
@@ -2066,8 +1939,6 @@ transition_message_case_keys = {
                                          jg.Enum('Real Time', RealTimeModel.realtime_message_type,
                                                  RealTimeModel.realtime_message_default,
                                                  var='real_time_type'))],
-    'Preset Rename': [PresetRenameModel,
-                      jg.SwitchDict.make_key('new_name', jg.Atom('New Name', str, var='new_name'))],
     'Song Position': [SongPositionModel,
                       jg.SwitchDict.make_key('song_position',
                                              jg.Atom('Song Position', int, var='song_position'))],
@@ -2107,11 +1978,10 @@ transition_message_case_keys = {
                                                        var='ring_action'))],
     'Set MIDI Thru': [MIDIThruModel,
                       jg.SwitchDict.make_key('value',
-                                             jg.Enum('Set MIDI Thru', MIDIThruModel.onoff_type,
-                                                     MIDIThruModel.onoff_default, var='value'))],
-    'Preset Scroll Message Count': [PresetScrollMessageCountModel,
-                                    jg.SwitchDict.make_key('message_count',
-                                                           jg.Atom('Message Count', int, var='message_count'))],
+                                             jg.Enum('Set MIDI Thru', onoff_type, onoff_default, var='value'))],
+    # 'Preset Scroll Message Count': [PresetScrollMessageCountModel,
+    #                                 jg.SwitchDict.make_key('message_count',
+    #                                                        jg.Atom('Message Count', int, var='message_count'))],
     'PC Number Scroll': [PCNumberScrollModel] + PCNumberScrollModel.get_keys(),
     'CC Value Scroll': [CCValueScrollModel] + CCValueScrollModel.get_keys(),
     'PC Number Scroll Update': [PCNumberScrollUpdateModel] + PCNumberScrollUpdateModel.get_keys(),

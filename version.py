@@ -1,7 +1,7 @@
 import semver
 import grammar as jg
 
-intuitive_version = '0.3.1'
+intuitive_version = '0.3.2'
 
 
 def version_verify(elem, _ctxt, _lp):

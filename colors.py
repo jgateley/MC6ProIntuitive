@@ -2,8 +2,8 @@ import grammar as jg
 import IntuitiveException
 
 
-colors = ["black", "lime", "blue", "color3", "yellow", "orchid", "gray", "white",
-          "orange", "red", "skyblue", "deeppink", "olivedrab", "mediumslateblue", "darkgreen", "color15",
+colors = ["black", "lime", "blue", "purple", "yellow", "orchid", "gray", "white",
+          "orange", "red", "skyblue", "deeppink", "olivedrab", "mediumslateblue", "darkgreen", "green",
           "color16", "color17", "color18", "color19", "color20", "color21", "color22", "color23",
           "color24", "color25", "color26", "color27", "color28", "aqua", "turquoise", "cadetblue",
           "steelblue", "lightsteelblue", "tan", "brown", "cornsilk", "maroon", "lavender", "teal",

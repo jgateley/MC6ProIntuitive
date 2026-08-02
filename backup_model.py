@@ -36,8 +36,9 @@ class MidiMessage(jg.GrammarModel):
         return self_byte == other_byte
 
     def __eq__(self, other):
-        result = (isinstance(other, MidiMessage) and
-                  self.type == other.type and
+        if not isinstance(other, MidiMessage):
+            return False
+        result = (self.type == other.type and
                   self.channel == other.channel and
                   self.trigger == other.trigger and self.toggle_state == other.toggle_state)
         if self.type in [1, 2, 13, 14, 15]:
@@ -179,10 +180,39 @@ class Bank(jg.GrammarModel):
 
 
 # Model for a MIDI Channel Name mapping
+class WaveformEngine(jg.GrammarModel):
+    def __init__(self):
+        super().__init__('WaveformEngine')
+        self.min = None
+        self.max = None
+
+    def __eq__(self, other):
+        result = self.min == other.min and self.max == other.max
+        if not result:
+            self.modified = True
+        return result
+
+
+class MidiClockSlot(jg.GrammarModel):
+    def __init__(self):
+        super().__init__('MidiClockSlot')
+        self.bpm = None
+
+    def __eq__(self, other):
+        result = self.bpm == other.bpm
+        if not result:
+            self.modified = True
+        return result
+
+
 class MidiChannel(jg.GrammarModel):
     def __init__(self):
         super().__init__('MidiChannel')
         self.name = None
+        self.is_midi_channel_offset = None
+        self.data_attributes = None
+        self.engage_enabled = None
+        self.bypass_enabled = None
 
     def __eq__(self, other):
         result = self.name == other.name
@@ -251,8 +281,16 @@ class Backup(jg.GrammarModel):
         self.bank_arrangement = None
         # General Configuration
         self.midi_channel = None
+        self.ignore_midi_clock = None
+        self.load_last_bank_on_startup = None
+        self.middle_layer_font_size = None
+        self.bank_page_font_size = None
+        self.brightness_value = None
+        self.bluetooth_startup_delay = None
         # Omniport (expression/aux jack) configuration
         self.omniports = None
+        self.waveform_engines = None
+        self.midi_clock_slots = None
 
     def __eq__(self, other):
         if self.bank_arrangement is None or other.bank_arrangement is None:

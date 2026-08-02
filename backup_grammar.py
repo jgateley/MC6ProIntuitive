@@ -130,14 +130,16 @@ usb_host_matrix_schema = \
             [jg.Dict.make_key('din5', jg.false_atom),
              jg.Dict.make_key('mm35', jg.false_atom),
              jg.Dict.make_key('omniport', jg.false_atom),
-             jg.Dict.make_key('usbDevice', jg.false_atom)])
+             jg.Dict.make_key('usbDevice', jg.false_atom),
+             jg.Dict.make_key('bluetooth', jg.false_atom, required=False)])
 
 usb_device_matrix_schema = \
     jg.Dict('usbDevice',
             [jg.Dict.make_key('din5', jg.false_atom),
              jg.Dict.make_key('mm35', jg.false_atom),
              jg.Dict.make_key('omniport', jg.false_atom),
-             jg.Dict.make_key('usbHost', jg.false_atom)])
+             jg.Dict.make_key('usbHost', jg.false_atom),
+             jg.Dict.make_key('bluetooth', jg.false_atom, required=False)])
 
 din5_matrix_schema = \
     jg.Dict('din5',
@@ -145,10 +147,20 @@ din5_matrix_schema = \
              jg.Dict.make_key('mm35', jg.false_atom),
              jg.Dict.make_key('omniport', jg.false_atom),
              jg.Dict.make_key('usbDevice', jg.false_atom),
-             jg.Dict.make_key('usbHost', jg.false_atom)])
+             jg.Dict.make_key('usbHost', jg.false_atom),
+             jg.Dict.make_key('bluetooth', jg.false_atom, required=False)])
 
 mm35_device_matrix_schema = \
     jg.Dict('mm35',
+            [jg.Dict.make_key('din5', jg.false_atom),
+             jg.Dict.make_key('mm35', jg.false_atom),
+             jg.Dict.make_key('omniport', jg.false_atom),
+             jg.Dict.make_key('usbDevice', jg.false_atom),
+             jg.Dict.make_key('usbHost', jg.false_atom),
+             jg.Dict.make_key('bluetooth', jg.false_atom, required=False)])
+
+bluetooth_matrix_schema = \
+    jg.Dict('bluetooth',
             [jg.Dict.make_key('din5', jg.false_atom),
              jg.Dict.make_key('mm35', jg.false_atom),
              jg.Dict.make_key('omniport', jg.false_atom),
@@ -164,7 +176,8 @@ midi_thru_matrix_schema = \
                                   [jg.Dict.make_key('usbHost', usb_host_matrix_schema),
                                    jg.Dict.make_key('usbDevice', usb_device_matrix_schema),
                                    jg.Dict.make_key('din5', din5_matrix_schema),
-                                   jg.Dict.make_key('mm35', mm35_device_matrix_schema)]))])
+                                   jg.Dict.make_key('mm35', mm35_device_matrix_schema),
+                                   jg.Dict.make_key('bluetooth', bluetooth_matrix_schema, required=False)]))])
 
 
 # Midi clock only uses 11 bits, but often defaults to 12 bits set
@@ -174,6 +187,15 @@ def midi_clock_output_ports(elem, _ctxt, _lp):
         if elem & 2047 == 2047:
             return elem
     return 4095
+
+
+# Accepts whatever value is present without raising or requiring a var/model to store it.
+# Used for fields inside controller_settings that we need to be able to *parse* (so newer
+# firmware exports don't crash the tool) but that build_restore.py never regenerates from a
+# model anyway -- controller_settings is always spliced back byte-for-byte from the original
+# file, so these fields' values are never read back out of the parsed model.
+def accept_any(elem, _ctxt, _lp):
+    return elem
 
 
 general_configuration_schema = \
@@ -188,7 +210,8 @@ general_configuration_schema = \
                   jg.Dict.make_key('midiClockPersist', jg.false_atom),
                   jg.Dict.make_key('lcdAlign', jg.true_atom),
                   jg.Dict.make_key('midiThru', jg.false_atom),
-                  jg.Dict.make_key('ignoreMidiClock', jg.false_atom),
+                  jg.Dict.make_key('ignoreMidiClock', jg.Atom('Ignore Midi Clock', bool, False,
+                                                               var='ignore_midi_clock')),
                   jg.Dict.make_key('crossMidiThru', jg.false_atom),
                   jg.Dict.make_key('savePresetToggle', jg.false_atom),
                   jg.Dict.make_key('midiChannel', jg.Atom('MIDI Channel', int, 0, var='midi_channel')),
@@ -196,17 +219,27 @@ general_configuration_schema = \
                   jg.Dict.make_key('bankChangeDelayTime', jg.zero_atom),
                   jg.Dict.make_key('bankChangeDisplayTime', jg.Atom('Bank Change Display Time', int, value=60)),
                   jg.Dict.make_key('longPressTime', jg.Atom('Long Press Time', int, value=12)),
-                  jg.Dict.make_key('loadLastBankOnStartup', jg.false_atom),
+                  jg.Dict.make_key('loadLastBankOnStartup', jg.Atom('Load Last Bank On Startup', bool, False,
+                                                                     var='load_last_bank_on_startup')),
                   jg.Dict.make_key('numMidiCable', jg.Atom('Num Midi Cable', int, value=1)),
                   jg.Dict.make_key('midiSendDelay', jg.zero_atom),
                   jg.Dict.make_key('presetMaxFontSize', jg.Atom('Preset Max Font Size', int, value=3)),
+                  jg.Dict.make_key('middleLayerFontSize', jg.Atom('Middle Layer Font Size', int, 0,
+                                                                   var='middle_layer_font_size'), required=False),
+                  jg.Dict.make_key('bankPageFontSize', jg.Atom('Bank Page Font Size', int, 0,
+                                                                var='bank_page_font_size'), required=False),
                   jg.Dict.make_key('showPresetLabels', jg.false_atom),
                   jg.Dict.make_key('midiThruMatrix', midi_thru_matrix_schema),
                   jg.Dict.make_key('screenSaverTime', jg.zero_atom),
                   jg.Dict.make_key('midiClockOutputPorts', jg.Atom('MIDI Clock Output Ports', int,
                                                                    value=midi_clock_output_ports)),
                   jg.Dict.make_key('rpA', jg.zero_atom),
-                  jg.Dict.make_key('rpB', jg.zero_atom)]))])
+                  jg.Dict.make_key('rpB', jg.zero_atom),
+                  jg.Dict.make_key('brightnessValue', jg.Atom('Brightness Value', int, 7,
+                                                               var='brightness_value'), required=False),
+                  jg.Dict.make_key('bluetoothStartupDelay', jg.Atom('Bluetooth Startup Delay', int, 0,
+                                                                     var='bluetooth_startup_delay'),
+                                   required=False)]))])
 
 waveform_engine_schema = \
     jg.Dict(
@@ -216,16 +249,17 @@ waveform_engine_schema = \
              'data',
              jg.Dict(
                  'waveform_engine_data',
-                 [jg.Dict.make_key('max', jg.Atom('Max', int, value=127)),
-                  jg.Dict.make_key('min', jg.zero_atom),
+                 [jg.Dict.make_key('max', jg.Atom('Max', int, 127, var='max')),
+                  jg.Dict.make_key('min', jg.Atom('Min', int, 0, var='min')),
                   jg.Dict.make_key('num', jg.identity_atom),
-                  jg.Dict.make_key('type', jg.zero_atom)]))])
+                  jg.Dict.make_key('type', jg.zero_atom)]))],
+        model=backup_model.WaveformEngine)
 
 waveform_engines_schema = \
     jg.Dict(
         'waveform_engines',
         [jg.Dict.make_key('type', jg.Atom('Type', str, value='waveform_engines')),
-         jg.Dict.make_key('data', jg.List('Data List', 8, waveform_engine_schema))])
+         jg.Dict.make_key('data', jg.List('Data List', 8, waveform_engine_schema, var='waveform_engines'))])
 
 
 # Some slight randomness in the backup file
@@ -296,7 +330,20 @@ midi_channel_schema = \
                  [jg.Dict.make_key('name', jg.Atom('Name', str, '', var='name')),
                   jg.Dict.make_key('channel', jg.Atom('Channel', int, value=jg.identity_plus_1)),
                   jg.Dict.make_key('sendToPort', jg.Atom('Send To Port', int, value=2047)),
-                  jg.Dict.make_key('remap', jg.zero_atom)]))],
+                  jg.Dict.make_key('remap', jg.zero_atom),
+                  jg.Dict.make_key('isMidiChannelOffset',
+                                   jg.Atom('Is Midi Channel Offset', bool, default=False,
+                                           var='is_midi_channel_offset'), required=False),
+                  jg.Dict.make_key('dataAttributes',
+                                   jg.List('Data Attributes', 8,
+                                           jg.List('Pair', 2, jg.Atom('Byte', int, 0)),
+                                           var='data_attributes'), required=False),
+                  jg.Dict.make_key('engageEnabled',
+                                   jg.Atom('Engage Enabled', bool, default=False, var='engage_enabled'),
+                                   required=False),
+                  jg.Dict.make_key('bypassEnabled',
+                                   jg.Atom('Bypass Enabled', bool, default=False, var='bypass_enabled'),
+                                   required=False)]))],
         model=backup_model.MidiChannel)
 
 midi_channels_schema = \
@@ -344,7 +391,7 @@ midi_event_schema = \
                   jg.Dict.make_key('valueFrom', jg.zero_atom),
                   jg.Dict.make_key('valueTo', jg.zero_atom),
                   jg.Dict.make_key('toSetOutgoingValue', jg.false_atom),
-                  jg.Dict.make_key('toMapInputOutput', jg.false_atom),
+                  jg.Dict.make_key('toMapInputOutput', jg.zero_atom),
                   jg.Dict.make_key('toMapValue', jg.false_atom)]))])
 
 midi_events_schema = \
@@ -369,6 +416,24 @@ resistor_ladder_aux_schema = \
             [jg.Dict.make_key('type', jg.Atom('Type', str, value='resistor_ladder_aux_switch_all')),
              jg.Dict.make_key('data', jg.List('Data List', 16, resistor_ladder_aux_data_schema))])
 
+midi_clock_slot_schema = \
+    jg.Dict(
+        'midi_clock_slot',
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='midi_clock_slot')),
+         jg.Dict.make_key(
+             'data',
+             jg.Dict(
+                 'midi_clock_slot_data',
+                 [jg.Dict.make_key('index', jg.identity_atom),
+                  jg.Dict.make_key('bpm', jg.Atom('BPM', int, default=0, var='bpm'))]))],
+        model=backup_model.MidiClockSlot)
+
+midi_clock_slots_schema = \
+    jg.Dict(
+        'midi_clock_slots',
+        [jg.Dict.make_key('type', jg.Atom('Type', str, value='midi_clock_slots')),
+         jg.Dict.make_key('data', jg.List('Data List', 16, midi_clock_slot_schema, var='midi_clock_slots'))])
+
 controller_settings_schema = \
     jg.Dict(
         'controller_settings',
@@ -384,7 +449,8 @@ controller_settings_schema = \
                       jg.Dict.make_key('midi_channels', midi_channels_schema),
                       jg.Dict.make_key('bank_arrangement', bank_arrangement_schema),
                       jg.Dict.make_key('midi_events', midi_events_schema),
-                      jg.Dict.make_key('resistor_ladder_aux', resistor_ladder_aux_schema)]))])
+                      jg.Dict.make_key('resistor_ladder_aux', resistor_ladder_aux_schema),
+                      jg.Dict.make_key('midi_clock_slots', midi_clock_slots_schema, required=False)]))])
 
 
 def download_date(_elem, _ctxt, _lp):
